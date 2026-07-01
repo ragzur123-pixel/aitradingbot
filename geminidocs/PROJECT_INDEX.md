@@ -8,7 +8,7 @@ This document provides an exhaustive, extremely detailed plain-text breakdown of
 
 ---
 
-## 💼 Investment Thesis (Funding & Scalability)
+## Investment Thesis (Funding & Scalability)
 
 This system is engineered as an autonomous, multi-modal quantitative trading engine designed to outmaneuver standard retail execution. 
 
@@ -18,7 +18,7 @@ This system is engineered as an autonomous, multi-modal quantitative trading eng
 
 ---
 
-## 📁 1. Core Orchestration & Automation
+## 1. Core Orchestration & Automation
 
 ### master_orchestrator.py (Master Process & Unified Decision Engine)
 **What the code is actively doing:**
@@ -121,7 +121,7 @@ An offline simulator used to mathematically stress-test and refine the AI's inte
 
 ---
 
-## 📁 2. Data Feed, Mathematics & Market Geometry
+## 2. Data Feed, Mathematics & Market Geometry
 
 ### market_feed.py (Market Context Engine)
 **What the code is actively doing:**
@@ -288,7 +288,7 @@ This file operates as an autonomous, high-frequency "Watchdog" risk manager. It 
 
 ---
 
-## 📁 3. Sentiment & Global Macro Sentinels
+## 3. Sentiment & Global Macro Sentinels
 
 ### sentiment_sentinel.py (Harvard Consensus Engine)
 **What the code is actively doing:**
@@ -370,7 +370,7 @@ This file operates as an autonomous, high-frequency "Watchdog" risk manager. It 
 
 ---
 
-## 📁 4. Trading Strategies, Allocators & Classifiers
+## 4. Trading Strategies, Allocators & Classifiers
 
 ### pairs_trading_scanner.py (Statistical Arbitrage Engine)
 **What the code is actively doing:**
@@ -464,7 +464,7 @@ This file acts as a centralized repository and unified router for different trad
 
 ---
 
-## 📁 5. State Management, Reconciliation & Self-Learning
+## 5. State Management, Reconciliation & Self-Learning
 
 ### database_manager.py (Trade State & System Database Management)
 **What the code is actively doing:**
@@ -574,7 +574,7 @@ This script evaluates the AI's most recent trade performance to spot systemic fa
 
 ---
 
-## 📁 6. System Health, Risk Overlay & Operations
+## 6. System Health, Risk Overlay & Operations
 
 ### deadmans_switch_server.py (VPS Dead-Man's Switch Server)
 **What the code is actively doing:**
@@ -747,7 +747,7 @@ The system is hard-locked into **Paper Trading Mode** to build a verifiable inst
 - [🔄] **Slippage Stress-Testing**: Constant 10bps penalty enforcement.
   - **Mechanics:** Inside `offline_backtest.py`, synthetic friction is applied to all entries and exits ($Friction Factor = 1 \pm 0.0045$). This forces the mathematical models to prove edge against "The Truth of the Tape" rather than idealized mid-prices.
 
-## 🚀 Future Milestones (Post-May 2027)
+## Future Milestones (Post-May 2027)
 - [ ] **Prop Firm Launch**: Purchase and execute a $100,000 challenge once the Shadow Fund reaches READY status.
   - **Mechanics:** Once `get_prop_firm_readiness()` confirms aggregate Shadow P&L exceeds $10,000 natively without drawdown violations, the Alpaca Paper keys will be rotated out for Prop Firm MetaTrader API credentials.
 - [ ] **IBKR Pro DMA Migration**: Switch from paper to Live DMA execution for institutional scaling.

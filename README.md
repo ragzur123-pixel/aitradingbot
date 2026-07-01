@@ -1,6 +1,6 @@
 <div align="center">
   
-# 🤖 AI TRADING BOT
+# AI TRADING BOT
 ### Autonomous Quantitative & Local LLM Arbitrage Engine
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)
@@ -15,7 +15,7 @@
 
 ---
 
-## 💼 Investment Thesis (Funding & Scalability)
+## Investment Thesis (Funding & Scalability)
 
 Unlike rudimentary indicator bots, this system fuses classical quantitative arbitrage (Pairs Trading, O-U mean reversion) with cutting-edge Local LLM sentiment analysis (Llama 70B). 
 
@@ -25,7 +25,7 @@ Unlike rudimentary indicator bots, this system fuses classical quantitative arbi
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 The trading bot operates via an asynchronous master orchestrator that manages data ingestion, risk calculation, and market execution.
 
@@ -40,7 +40,7 @@ graph TD;
     E -.->|"Fail: News Veto"| F;
 ```
 
-### ⚙️ Algorithmic Execution Flow (Script Interactions)
+### Algorithmic Execution Flow (Script Interactions)
 
 This detailed pipeline illustrates exactly how the python modules interact during a live trading event. The system heavily prioritizes saving compute and preventing losses by aggressively triggering "Strategic Skips" if any condition is imperfect.
 
@@ -92,23 +92,23 @@ flowchart TD
 
 ---
 
-## 🧠 Core Systems & Sentinels
+## Core Systems & Sentinels
 
 The bot is divided into highly specialized sentinels and engines:
 
-### 📈 Alpha Generation
+### Alpha Generation
 - **Pairs Arbitrage Scanner**: Scans high-correlation asset pairs (e.g. NVDA vs SOXX) and triggers trades when Z-scores breach standard deviations.
 - **Local LLM Sentinel**: Consumes raw numerical order-flow tensors and news headlines via Llama 70B to prevent spoofing and front-running.
 - **Regime Classifier**: Determines current market volatility percentiles using ATR to dynamically adjust Stop Loss (SL) and Take Profit (TP) distances.
 
-### 🛡️ Risk Management & Defense
+### Risk Management & Defense
 - **Global Sentinel**: Pings macro indicators (DXY, VIX, US10Y). If the environment is hostile (e.g., Yield Spike), it issues a hard veto on directional trades.
 - **Connectivity Sentinel**: Subprocesses ping checks to exchange servers, blocking trades if network jitter exceeds 350ms.
 - **Asymmetric Entry Optimizer**: Rejects immediate execution at the bid/ask spread, actively hunting for VWAP-anchored prices to secure institutional fills.
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### 1. Installation
 Clone the repository and install the dependencies:
@@ -138,7 +138,7 @@ python master_orchestrator.py
 
 ---
 
-## 📚 Deep Dive Documentation
+## Deep Dive Documentation
 
 For a complete breakdown of every file, mathematical formula, and logic gate used in this system, please read the exhaustive [Master Project Index & Mechanics Map](geminidocs/PROJECT_INDEX.md).
 
