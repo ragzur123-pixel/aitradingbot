@@ -31,13 +31,13 @@ The trading bot operates via an asynchronous master orchestrator that manages da
 
 ```mermaid
 graph TD;
-    A[Master Orchestrator] -->|Triggers| B(Alpha Queue Scanner);
-    A -->|Spawns| C[Risk Manager Daemon];
-    B -->|Mathematical Validation| D{Decision Engine};
-    D -->|Pass| E[Local LLM Sentiment Audit];
-    D -.->|Fail (Math Gate)| F[Reject];
-    E -->|Pass| G[Alpaca Order Execution];
-    E -.->|Fail (News Veto)| F;
+    A["Master Orchestrator"] -->|"Triggers"| B("Alpha Queue Scanner");
+    A -->|"Spawns"| C["Risk Manager Daemon"];
+    B -->|"Mathematical Validation"| D{"Decision Engine"};
+    D -->|"Pass"| E["Local LLM Sentiment Audit"];
+    D -.->|"Fail: Math Gate"| F["Reject"];
+    E -->|"Pass"| G["Alpaca Order Execution"];
+    E -.->|"Fail: News Veto"| F;
 ```
 
 ---
