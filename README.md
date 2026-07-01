@@ -117,6 +117,10 @@ The bot is divided into highly specialized sentinels and engines:
 
 ## Quick Start Guide
 
+### Prerequisites
+- **Hardware/AI**: Requires Ollama running `llama3.1:70b` on `localhost:11434` and a minimum of 40GB VRAM (for testing on standard machines, you can swap this for a quantized 8B model).
+- **Environment**: Python 3.10+
+
 ### 1. Installation
 Clone the repository and install the dependencies:
 ```bash
@@ -143,6 +147,12 @@ Launch the autonomous orchestrator (Runs on an infinite event loop):
 python master_orchestrator.py
 ```
 
+### 5. Run in Simulation Mode (Safe Demo)
+Reviewers and engineers can safely test the quantitative pipeline without real API keys by running the offline backtest simulation:
+```bash
+python offline_backtest.py
+```
+
 ---
 
 ## About the Developer
@@ -154,6 +164,15 @@ This system was built from scratch as an independent learning project. My goal w
 ## Deep Dive Documentation
 
 For a complete breakdown of every file, mathematical formula, and logic gate used in this system, please read the exhaustive [Master Project Index & Mechanics Map](geminidocs/PROJECT_INDEX.md).
+
+---
+
+## Future Roadmap
+
+This architecture serves as the foundational baseline for a much larger infrastructure build. Future scaling plans include:
+- **Broker Migration**: Transitioning from Alpaca to IBKR Pro DMA (Direct Market Access) for institutional execution routing.
+- **Data Expansion**: Expanding the local ChromaDB vector database to ingest a broader spectrum of global macro-economic reports.
+- **Latency Optimization**: Scaling the async orchestrator in Rust or C++ to handle multi-exchange latency arbitrage.
 
 <div align="center">
  <br>
