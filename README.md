@@ -15,9 +15,9 @@
 
 ---
 
-## Investment Thesis (Funding & Scalability)
+## The Engineering Architecture
 
-Unlike rudimentary indicator bots, this system fuses classical quantitative arbitrage (Pairs Trading, O-U mean reversion) with cutting-edge Local LLM sentiment analysis (Llama 70B). 
+This project was built from scratch as a 1,700-line system, utilizing LLMs as a coding copilot to rapidly prototype and scale complex infrastructure. Unlike rudimentary indicator bots, this system fuses classical quantitative arbitrage (Pairs Trading, O-U mean reversion) with cutting-edge Local LLM sentiment analysis (Llama 70B). 
 
 - **Intelligent Risk Allocation:** It employs a Bayesian self-auditing mechanic to rigorously calculate probabilities before capital deployment.
 - **Institutional Stability:** The architecture includes hard-coded safety gates (correlation vetoes, macro-economic filters, and connection sentinels) to protect capital during black swan events.
@@ -105,6 +105,7 @@ The bot is divided into highly specialized sentinels and engines:
 - **Global Sentinel**: Pings macro indicators (DXY, VIX, US10Y). If the environment is hostile (e.g., Yield Spike), it issues a hard veto on directional trades.
 - **Connectivity Sentinel**: Subprocesses ping checks to exchange servers, blocking trades if network jitter exceeds 350ms.
 - **Asymmetric Entry Optimizer**: Rejects immediate execution at the bid/ask spread, actively hunting for VWAP-anchored prices to secure institutional fills.
+- **Safety & Testing (Shadow Lock)**: To ensure absolute maturity and safety, the core execution engine is strictly hard-coded into a forward-testing paper simulation lock until May 2027, preventing live capital deployment while safely harvesting out-of-sample performance data.
 
 ---
 
@@ -125,7 +126,7 @@ cp config.yaml.example config.yaml
 ```
 
 ### 3. Initialize Vector Database
-The system uses ChromaDB for its historical research ingestion. Run the data pipeline to build your local embeddings:
+The system uses ChromaDB for its historical research ingestion. Run the data pipeline to fetch institutional trading lectures from YouTube and feed them directly into the local AI's context window:
 ```bash
 python 1_download_youtube.py
 ```
