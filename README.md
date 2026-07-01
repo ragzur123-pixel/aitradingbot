@@ -40,6 +40,56 @@ graph TD;
     E -.->|"Fail: News Veto"| F;
 ```
 
+### ⚙️ Algorithmic Execution Flow (Script Interactions)
+
+This detailed pipeline illustrates exactly how the python modules interact during a live trading event. The system heavily prioritizes saving compute and preventing losses by aggressively triggering "Strategic Skips" if any condition is imperfect.
+
+```mermaid
+flowchart TD
+    %% Define Styles
+    classDef core fill:#1E293B,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC
+    classDef script fill:#0F172A,stroke:#10B981,stroke-width:1px,color:#F8FAFC
+    classDef veto fill:#450A0A,stroke:#EF4444,stroke-width:1px,color:#FEE2E2
+    classDef ext fill:#172554,stroke:#60A5FA,stroke-width:1px,color:#DBEAFE
+    
+    subgraph "Layer 1: Orchestration (Infinite Loop)"
+        MO["master_orchestrator.py"]:::core
+        RM["risk_manager.py"]:::script
+        PW["price_watch.py (OANDA)"]:::ext
+        MO -->|"Spawns Background Daemon"| RM
+        RM -->|"High-Frequency SL Checks"| PW
+    end
+
+    subgraph "Layer 2: Execution Pipeline"
+        AP["autonomous_pipeline.py"]:::core
+        MS["market_snapshot.py"]:::script
+        TB["5_trading_bot.py"]:::script
+        CRO["cro_risk.py"]:::script
+    end
+    
+    MO -->|"Dispatches Asset Tickers"| AP
+    AP -->|"Step 1: Build Context"| MS
+    MS -->|"Step 2: Enter Alpha Model"| TB
+    TB -->|"Step 3: Execute Trade"| CRO
+    
+    subgraph "Layer 3: Dependencies & Sentinels"
+        MF["market_feed.py"]:::ext
+        GEO["geometry.py & indicators.py"]:::ext
+        GS["global_sentinel.py (Veto)"]:::veto
+        SS["sentiment_sentinel.py (NLP)"]:::veto
+        LLM["local_llm_client.py (Llama)"]:::ext
+    end
+    
+    MS -->|"Fetch Live Data"| MF
+    MS -->|"Calculate Imbalances"| GEO
+    MS -.->|"Fails Math Zero-Gate"| EXIT["Strategic Skip (Abort)"]:::veto
+    
+    TB -->|"Audit Macro Setup"| GS
+    TB -->|"Poll Harvard Consensus"| SS
+    TB -->|"Adversarial Assessment"| LLM
+    TB -.->|"Fails Any Sentinel Veto"| EXIT
+```
+
 ---
 
 ## 🧠 Core Systems & Sentinels
