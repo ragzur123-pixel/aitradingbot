@@ -1,0 +1,28 @@
+[Unit]
+Description=AI Trading Bot Master Orchestrator
+After=network.target
+
+[Service]
+# Replace 'ubuntu' with your VPS username
+User=ubuntu
+Group=ubuntu
+
+# Set the working directory to your project folder
+WorkingDirectory=/home/ubuntu/AiTradingBot
+
+# Ensure Python output is sent to logs immediately
+Environment=PYTHONUNBUFFERED=1
+
+# Command to start the bot (adjust python path if using a venv)
+ExecStart=/usr/bin/python3 master_orchestrator.py
+
+# Automatically restart the bot if it crashes
+Restart=always
+RestartSec=10
+
+# Log management
+StandardOutput=append:/home/ubuntu/AiTradingBot/orchestrator_stdout.log
+StandardError=append:/home/ubuntu/AiTradingBot/orchestrator_stderr.log
+
+[Install]
+WantedBy=multi-user.target
