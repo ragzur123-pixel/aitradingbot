@@ -9,7 +9,7 @@
 [![Quant](https://img.shields.io/badge/Algorithmic%20Trading-Institutional-black.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-*An autonomous, multi-modal quantitative trading engine designed to outmaneuver standard retail execution using classical arbitrage and adversarial LLM sentiment analysis.*
+*An experimental, multi-modal architecture designed to test local LLM orchestration and fault-tolerant data pipelines in live market conditions.*
 
 </div>
 
@@ -28,6 +28,12 @@ This project was built from scratch as a 1,700-line system, utilizing LLMs as a 
 ## System Architecture
 
 The trading bot operates via an asynchronous master orchestrator that manages data ingestion, risk calculation, and market execution.
+
+### Tech Stack
+- **Languages**: Python 3.10, Asyncio
+- **AI & Models**: Llama-3.1 70B, HuggingFace
+- **Data & Databases**: ChromaDB (Vector), SQLite
+- **APIs & Integration**: Alpaca, Polygon, DailyFX
 
 ```mermaid
 graph TD;
@@ -139,11 +145,17 @@ python master_orchestrator.py
 
 ---
 
+## About the Developer
+
+This system was built from scratch as an independent learning project. My goal was to teach myself advanced asynchronous Python, fault-tolerant infrastructure, and local AI orchestration. By engineering a complex, event-driven trading environment, I was able to practically explore how different computational systems safely communicate under pressure.
+
+---
+
 ## Deep Dive Documentation
 
 For a complete breakdown of every file, mathematical formula, and logic gate used in this system, please read the exhaustive [Master Project Index & Mechanics Map](geminidocs/PROJECT_INDEX.md).
 
 <div align="center">
  <br>
- <i>Engineered for zero-latency execution and survival.</i>
+ <i>Built as an exploration of scalable systems engineering and AI orchestration.</i>
 </div>
