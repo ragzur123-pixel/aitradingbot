@@ -175,6 +175,7 @@ For a complete breakdown of every file, mathematical formula, and logic gate use
 ## Future Roadmap
 
 This architecture serves as the foundational baseline for a much larger infrastructure build. Future scaling plans include:
+- **Advanced LLM Integration**: Upgrading the sentiment analysis engine from local Llama 70B to enterprise-grade APIs (e.g., Anthropic Claude / OpenAI) for deeper, more nuanced macroeconomic reasoning and decision-making.
 - **Broker Migration**: Transitioning from Alpaca to IBKR Pro DMA (Direct Market Access) for institutional execution routing.
 - **Data Expansion**: Expanding the local ChromaDB vector database to ingest a broader spectrum of global macro-economic reports.
 - **Latency Optimization**: Scaling the async orchestrator in Rust or C++ to handle multi-exchange latency arbitrage.
