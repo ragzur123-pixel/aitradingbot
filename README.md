@@ -57,43 +57,54 @@ flowchart TD
   classDef script fill:#0F172A,stroke:#10B981,stroke-width:1px,color:#F8FAFC
   classDef veto fill:#450A0A,stroke:#EF4444,stroke-width:1px,color:#FEE2E2
   classDef ext fill:#172554,stroke:#60A5FA,stroke-width:1px,color:#DBEAFE
+  classDef db fill:#3F3F46,stroke:#A1A1AA,stroke-width:1px,color:#F8FAFC
   
-  subgraph "Layer 1: Orchestration (Infinite Loop)"
-    MO["master_orchestrator.py"]:::core
-    RM["risk_manager.py"]:::script
-    PW["price_watch.py (OANDA)"]:::ext
-    MO -->|"Spawns Background Daemon"| RM
-    RM -->|"High-Frequency SL Checks"| PW
+  subgraph "Layer 1: Orchestration (Unified Decision Engine)"
+    MO["master_orchestrator.py<br>(Prioritizes Assets, Bayesian Risk Sizing)"]:::core
+    RM["risk_manager.py<br>(Deterministic Guardian: Dynamic SL/TP)"]:::script
+    DB[("SQLite State DB<br>(atomic_ops.py)")]:::db
+    MO -->|"Spawns 5s Daemon"| RM
+    RM -->|"Reads/Writes Trade States"| DB
+    MO -->|"Reconciles Portfolio Risk"| DB
   end
 
-  subgraph "Layer 2: Execution Pipeline"
-    AP["autonomous_pipeline.py"]:::core
-    MS["market_snapshot.py"]:::script
-    TB["5_trading_bot.py"]:::script
-    CRO["cro_risk.py"]:::script
+  subgraph "Layer 2: Execution Pipeline (Subprocess Automation)"
+    AP["autonomous_pipeline.py<br>(Clockwork Wrapper)"]:::core
+    MS["market_snapshot.py<br>(Pydantic Source-of-Truth)"]:::script
+    TB["5_trading_bot.py<br>(Z-Score Arbitrage & Auditor)"]:::script
+    CRO["cro_risk.py<br>(Asymmetric Entry Optimizer)"]:::script
   end
   
-  MO -->|"Dispatches Asset Tickers"| AP
-  AP -->|"Step 1: Build Context"| MS
-  MS -->|"Step 2: Enter Alpha Model"| TB
-  TB -->|"Step 3: Execute Trade"| CRO
+  MO -->|"Dispatches Target Ticker"| AP
+  AP -->|"Subprocess 1"| MS
+  MS -->|"If Passes"| TB
+  TB -->|"If Passes"| CRO
   
-  subgraph "Layer 3: Dependencies & Sentinels"
-    MF["market_feed.py"]:::ext
-    GEO["geometry.py & indicators.py"]:::ext
-    GS["global_sentinel.py (Veto)"]:::veto
-    SS["sentiment_sentinel.py (NLP)"]:::veto
-    LLM["local_llm_client.py (Llama)"]:::ext
+  subgraph "Layer 3: Data & Math Construction"
+    MF["market_feed.py<br>(OHLCV, CVD Order Flow, Integrity)"]:::ext
+    GEO["geometry.py<br>(FVG, Volume Profile, Sweeps)"]:::ext
+    IND["indicators.py<br>(ATR, O-U Reversion, Z-Score)"]:::ext
   end
   
-  MS -->|"Fetch Live Data"| MF
-  MS -->|"Calculate Imbalances"| GEO
-  MS -.->|"Fails Math Zero-Gate"| EXIT["Strategic Skip (Abort)"]:::veto
+  MS -->|"Fetch Raw Alpaca/Polygon Data"| MF
+  MS -->|"Compute SMC Structures"| GEO
+  MS -->|"Compute Classic TA"| IND
+  MS -.->|"Distance > ATR Threshold"| EXIT_MATH["Zero-Cost Math Gate (Exit 2)"]:::veto
   
-  TB -->|"Audit Macro Setup"| GS
-  TB -->|"Poll Harvard Consensus"| SS
-  TB -->|"Adversarial Assessment"| LLM
-  TB -.->|"Fails Any Sentinel Veto"| EXIT
+  subgraph "Layer 4: Defensive Sentinels & AI"
+    GS["global_sentinel.py<br>(DXY, US10Y Vetoes)"]:::veto
+    SS["sentiment_sentinel.py<br>(Harvard Consensus NLP)"]:::veto
+    LLM["local_llm_client.py<br>(Llama 70B Tensor Evaluation)"]:::ext
+    VDB[("ChromaDB<br>(StrategyRetriever)")]:::db
+  end
+  
+  TB -->|"Fetch Past Context"| VDB
+  TB -->|"Verify Macro Stability"| GS
+  TB -->|"Verify News Sentiment"| SS
+  TB -->|"Adversarial Probability Audit"| LLM
+  TB -.->|"If Sentinel Detects Risk"| EXIT_VETO["Strategic Veto (Abort)"]:::veto
+  
+  CRO -->|"Calculates VWAP Limit Order"| ALPACA(("Alpaca DMA")):::ext
 ```
 
 ---
