@@ -108,10 +108,15 @@ The bot is divided into highly specialized sentinels and engines:
 - **Regime Classifier**: Determines current market volatility percentiles using ATR to dynamically adjust Stop Loss (SL) and Take Profit (TP) distances.
 
 ### Risk Management & Defense
+- **VPS Dead-Man's Switch**: A remote Flask server (`deadmans_switch_server.py`) continually monitors a 90-second heartbeat from the local PC. If the local hardware loses power or connectivity, the remote server triggers an emergency liquidation to prevent unmonitored exposure.
 - **Global Sentinel**: Pings macro indicators (DXY, VIX, US10Y). If the environment is hostile (e.g., Yield Spike), it issues a hard veto on directional trades.
 - **Connectivity Sentinel**: Subprocesses ping checks to exchange servers, blocking trades if network jitter exceeds 350ms.
 - **Asymmetric Entry Optimizer**: Rejects immediate execution at the bid/ask spread, actively hunting for VWAP-anchored prices to secure institutional fills.
 - **Safety & Testing (Shadow Lock)**: To ensure absolute maturity and safety, the core execution engine is strictly hard-coded into a forward-testing paper simulation lock until May 2027, preventing live capital deployment while safely harvesting out-of-sample performance data.
+
+### State & Persistence
+- **ACID-Compliant State Management**: Real-time trade states and portfolio configurations are managed by a custom SQLite implementation (`database_manager.py`). 
+- **Thread-Safe File Locking**: To prevent race conditions during high-frequency execution loops, data persistence is protected by a bespoke atomic file lock engine (`atomic_ops.py`).
 
 ---
 
@@ -130,7 +135,7 @@ pip install -r requirements.txt
 ```
 
 ### 2. Configuration
-Copy the sample config and insert your API keys (Alpaca, Polygon, DailyFX):
+Copy the sample config and insert your API keys (Requires free API keys for Alpaca, Polygon.io, and optional Discord/Telegram webhooks for alerts):
 ```bash
 cp config.yaml.example config.yaml
 ```
