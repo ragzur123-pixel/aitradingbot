@@ -1,0 +1,54 @@
+system:
+  token_daily_limit: 5.00
+  log_file: "trading_system.log"
+  state_file: "state.json"
+  journal_path: "trade_journal.json"
+  research_journal_path: "research_journal.db"
+  snapshot_file: "market_snapshot.md"
+
+ingestion:
+  alpaca_feed: "sip"
+  strict_mode: true
+
+trading:
+  # --- THE 12-MONTH SHADOW LOCK ---
+  paper_trading: true 
+  shadow_lock_until: "2027-05-31" 
+  
+  # --- SCALE REALISM: $100k TARGET ---
+  account_balance: 100000 # Scaling for Institutional Sustainability
+  target_annual_return_pct: 25.0 # More realistic alpha for stationary niches
+  max_portfolio_risk_pct: 0.05
+  max_equity_risk_pct: 0.005 # Tightened risk for $100k scale
+  
+  # STRATEGY: Quiet Mathematical Arbitrage
+  # Focusing on Dual-Listed Miners and Preferreds (Stationary)
+  min_zscore_anomaly: 3.0 # Reverted to 3.0 for stationary niches
+  ou_half_life_limit_days: 15.0 # Slower, more reliable reversion
+  
+  # BORING NICHE PORTFOLIO: High Liquidity, Lower Chaos
+  portfolio_tickers: ["GOLD", "BHP", "RIO", "AEM", "VALE", "FCX", "GDX", "PICK"] 
+  timeframe_minutes: 1440 
+  tactical_timeframe_minutes: 60 
+  cycle_interval_seconds: 3600
+  simulated_slippage_bps: 5.0 # Stationary assets have lower entry friction
+  
+  broker_primary: "IBKR" 
+  ibkr_port: 7497 
+  ibkr_client_id: 1
+
+hustle_fund:
+  target_capital: 10000.0
+  index_fund_holdings: {SPY: 0.0, QQQ: 0.0}
+  total_hustle_contributions: 0.0
+  user_hourly_wage_usd: 25.0 
+
+models:
+  primary: {name: "llama3.1:70b", provider: "local"} 
+  verifier: {name: "gemma2:9b", provider: "local"} 
+  cro: {name: "llama3.1:latest", provider: "local"}
+
+database:
+  chroma_dir: "./chroma_db"
+  memory_dir: "final_memory"
+  batch_size: 50

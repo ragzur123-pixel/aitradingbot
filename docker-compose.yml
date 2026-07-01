@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  aitradingbot:
+    build: .
+    container_name: aitradingbot_core
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./chroma_db:/app/chroma_db
+      - ./final_memory:/app/final_memory
+      - ./logs:/app/logs
+      - ./trade_journal.json:/app/trade_journal.json
+      - ./state.json:/app/state.json
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10mb"
+        max-file: "3"
+
+  # Optional: Watchtower to auto-update container if image changes
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 3600 --cleanup

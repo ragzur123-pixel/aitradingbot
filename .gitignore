@@ -1,0 +1,11 @@
+.env
+raw_videos/
+extracted_frames/
+final_memory/
+chroma_db/
+__pycache__/
+*.log
+*.db
+geminiproapi.txt
+state.json
+last_valid_bias.json
