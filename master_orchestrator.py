@@ -170,8 +170,8 @@ from bayesian_self_auditor import BayesianSelfAuditor
 class DecisionEngine:
     """Unified Decision Engine with Bayesian Calibration."""
     def __init__(self):
-        self.local_ai = LocalLLMClient(model="llama3.1-70b-q4") # 70B Quantized on GCP L4
-        self.sonnet = ChatAnthropic(model="claude-3-5-sonnet-20240620", temperature=0.7) 
+        self.local_ai = LocalLLMClient(model="llama3.1:70b") # 70B Quantized on GCP L4
+        self.sonnet = LocalLLMClient(model="llama3.1:70b")
         self.processor = RawDataProcessor()
         self.bayesian_auditor = BayesianSelfAuditor()
 

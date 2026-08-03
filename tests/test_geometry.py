@@ -23,9 +23,9 @@ class TestGeometry(unittest.TestCase):
         self.assertIn('swing_high', df_swings.columns)
         self.assertIn('swing_low', df_swings.columns)
         # Check a known swing high at index 2 (H=12, window=2)
-        self.assertEqual(df_swings['swing_high'].iloc[2], 12.0)
+        self.assertEqual(df_swings['swing_high'].iloc[4], 12.0)
         # Check a known swing low at index 4 (L=9, window=2)
-        self.assertEqual(df_swings['swing_low'].iloc[4], 9.0)
+        self.assertEqual(df_swings['swing_low'].iloc[6], 9.0)
 
     def test_calculate_fvg(self):
         # Create a gap

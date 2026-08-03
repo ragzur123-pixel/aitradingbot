@@ -11,8 +11,8 @@ def calculate_swing_points(df, window=5):
     # A high at index i is a swing high if it's the max of [i-window, i+window]
     # In real-time, we check if the high at index 'i-window' was the max of [i-2*window, i]
     
-    df['is_high'] = df['High'] == df['High'].rolling(window=window*2+1).max()
-    df['is_low'] = df['Low'] == df['Low'].rolling(window=window*2+1).min()
+    df['is_high'] = df['High'] == df['High'].rolling(window=window*2+1, center=True).max()
+    df['is_low'] = df['Low'] == df['Low'].rolling(window=window*2+1, center=True).min()
     
     # Shift back by 'window' to mark the ACTUAL peak, but only if confirmed by future bars
     # This means the 'swing_high' column will have values 'window' bars in the past.
@@ -20,11 +20,11 @@ def calculate_swing_points(df, window=5):
     df['swing_low'] = np.nan
     
     # We mark the swing point at the actual peak index
-    high_indices = df.index[df['is_high'].shift(-window) == True]
-    low_indices = df.index[df['is_low'].shift(-window) == True]
+    high_indices = df.index[df['is_high'].shift(window) == True]
+    low_indices = df.index[df['is_low'].shift(window) == True]
     
-    df.loc[high_indices, 'swing_high'] = df.loc[high_indices, 'High']
-    df.loc[low_indices, 'swing_low'] = df.loc[low_indices, 'Low']
+    df.loc[high_indices, 'swing_high'] = df.loc[high_indices - window, 'High'].values
+    df.loc[low_indices, 'swing_low'] = df.loc[low_indices - window, 'Low'].values
     
     return df.drop(columns=['is_high', 'is_low'])
 
