@@ -355,18 +355,7 @@ This file operates as an autonomous, high-frequency "Watchdog" risk manager. It 
  - **Urgency Score**: $Number\ of\ Headlines\ Fetched / 10.0$.
 - **Variables**: `api_key` (Polygon auth), `base_url` (v2/reference/news endpoint), `clean_ticker` (sanitized symbol string), `params` (API query arguments), `news` (JSON array of article objects), `headlines` (list of string titles), `urgency_score` (calculated float).
 
-### cheap_sentiment_scraper.py (Zero-Cost Local AI Scraper)
-**What the code is actively doing:**
-- **Execution Flow**: This module operates as a cost-saving alternative to paid NLP APIs. It first attempts to grab news using the existing Alpaca API integration via `sentiment_sentinel.py`. If Alpaca returns nothing or fails, it initiates a fallback Web Scraper. It sends an HTTP request masquerading as a web browser to ForexFactory, uses BeautifulSoup to parse the HTML DOM, and rips text from specific div classes (`flex-1`). Once headlines are gathered from either source, it constructs a prompt containing the top 15 headlines and sends them to a locally hosted LLM (Llama 3.1) via `LocalLLMClient`. The local LLM calculates the sentiment bias, keeping API costs at strictly $0.
-- **Internal Functions**:
- - `scrape_headlines()`: Executes an HTTP GET request with a spoofed User-Agent. Parses the response with BeautifulSoup to find and extract the text from the top 10 news items.
- - `get_market_bias()`: The main pipeline. Attempts Alpaca API first, triggers `scrape_headlines()` on fail. Formats the retrieved text into an LLM prompt, invokes the local model, parses the string float return, and categorizes the bias.
-- **Mathematical Formulas used**:
- - **Categorical Bias Assignment**: 
-  - `BULLISH` if $bias\_score > 0.3$.
-  - `BEARISH` if $bias\_score < -0.3$.
-  - `NEUTRAL` if between $[-0.3, 0.3]$.
-- **Variables**: `sources` (dictionary of target URLs), `local_ai` (instance of `LocalLLMClient`), `headers` (spoofed browser info), `soup` (BeautifulSoup HTML object), `items` (HTML DOM nodes), `headlines` (array of text), `prompt` (string sent to Llama), `bias_score` (parsed float), `status` (string label).
+
 
 ---
 
