@@ -14,6 +14,10 @@ scripts = [
 
 async def run_script_async(script, ticker):
     """Run a python script asynchronously and return the exit code."""
+    if not os.path.exists(script):
+        logger.error(f"[CRITICAL ERROR] Script {script} not found in the repository!")
+        return 1
+        
     logger.info(f" >>> Executing {script}...")
     cmd = [sys.executable, script, ticker]
     
