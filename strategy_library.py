@@ -10,8 +10,8 @@ class AlphaStrategy:
 class ContrarianHunter(AlphaStrategy):
     """Fades retail crowds by identifying traps."""
     def get_signal(self, df):
-        from contrarian_module import ContrarianModule
-        hunter = ContrarianModule()
+        from contrarian_module import ContrarianTrapHunter
+        hunter = ContrarianTrapHunter()
         traps = hunter.identify_trap_scenarios(df)
         if traps:
             return {"direction": traps[0]['institutional_intent'], "confidence": 0.8}

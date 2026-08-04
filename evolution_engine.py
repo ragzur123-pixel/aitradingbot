@@ -11,10 +11,7 @@ from config_loader import config
 logger = logging.getLogger("evolution_engine")
 
 class EvolutionEngine:
-    """
-    Self-Evolving Strategy Optimizer.
-    Runs 'Walk-Forward' backtests on realized market data to shift fund weights.
-    """
+    """Runs walk-forward backtests on realized market data to shift fund weights."""
     def __init__(self):
         self.db = TradingDatabase()
 
@@ -50,7 +47,7 @@ class EvolutionEngine:
                         )
                     
                     if sim.active_trade:
-                        sim.update(df['Close'].iloc[i], df['ATR_14'].iloc[i], df.index[i])
+                        sim.update(df.iloc[i], df['ATR_14'].iloc[i], df.index[i])
 
                 total_strat_pl += (sim.balance - 1000)
 

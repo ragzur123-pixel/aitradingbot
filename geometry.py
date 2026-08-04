@@ -1,3 +1,4 @@
+"""Price structure analysis: swing detection, FVG identification, volume profile."""
 import pandas as pd
 import numpy as np
 
@@ -19,17 +20,13 @@ def calculate_swing_points(df, window=5):
     df['swing_high'] = np.nan
     df['swing_low'] = np.nan
     
-    # We mark the swing point at the actual peak index
-    high_indices = df.index[df['is_high'].shift(window) == True]
-    low_indices = df.index[df['is_low'].shift(window) == True]
-    
-    df.loc[high_indices, 'swing_high'] = df.loc[high_indices - window, 'High'].values
-    df.loc[low_indices, 'swing_low'] = df.loc[low_indices - window, 'Low'].values
+    df['swing_high'] = np.where(df['is_high'].shift(window) == True, df['High'].shift(window), np.nan)
+    df['swing_low'] = np.where(df['is_low'].shift(window) == True, df['Low'].shift(window), np.nan)
     
     return df.drop(columns=['is_high', 'is_low'])
 
 def calculate_fvg(df):
-    """Identify Fair Value Gaps (FVG) or Imbalances."""
+    """Three-candle gap pattern detection."""
     fvg_zones = []
     # Loop through to find 3-candle patterns
     for i in range(2, len(df)):
@@ -99,10 +96,7 @@ def calculate_volume_delta(df):
     return delta
 
 def detect_liquidity_sweeps(df, window=20):
-    """
-    Identifies 'Stop Runs' where price sweeps a key level and reverses.
-    This is the signature of institutional 'Smart Money' entries.
-    """
+    """Detects false breakouts (price breaks recent high/low then reverses)."""
     df = calculate_swing_points(df, window=5)
     highs = df['swing_high'].dropna()
     lows = df['swing_low'].dropna()
@@ -134,9 +128,9 @@ def detect_liquidity_sweeps(df, window=20):
         
     return sweeps
 
-def check_geometric_distance(point_a, point_b):
+def price_distance(point_a, point_b):
     """Calculates Euclidean distance between two price points (time ignored for simple checks)."""
-    return np.sqrt((point_a - point_b)**2)
+    return abs(point_a - point_b)
 
 def calculate_volatility_floor(df, window=20):
     """
@@ -238,14 +232,14 @@ def get_geometric_anchors(df):
     poc, va_low, va_high = calculate_volume_profile(df)
     
     # Distance checks for Trap detection
-    dist_to_high = check_geometric_distance(df['Close'].iloc[-1], last_high)
-    dist_to_low = check_geometric_distance(df['Close'].iloc[-1], last_low)
+    dist_to_high = price_distance(df['Close'].iloc[-1], last_high)
+    dist_to_low = price_distance(df['Close'].iloc[-1], last_low)
     
-    anchor_text = f"MATH-ANCHORED GEOMETRY (Institutional Footprints):\n"
+    anchor_text = f"MATH-ANCHORED GEOMETRY:\n"
     anchor_text += f"- Order Flow (Volume Delta): {'Net Buying' if volume_delta > 0 else 'Net Selling'} ({volume_delta:.0f} units)\n"
     
     if sweeps or absorption:
-        anchor_text += "- 🚨 INSTITUTIONAL SIGNATURES DETECTED:\n"
+        anchor_text += "- PATTERNS DETECTED:\n"
         for s in sweeps:
             anchor_text += f"  * {s['type']} at level {s['level']:.5f} ({s['description']})\n"
         for a in absorption:
