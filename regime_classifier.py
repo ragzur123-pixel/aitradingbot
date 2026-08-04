@@ -35,8 +35,9 @@ class RegimeClassifier:
         historical_atr = df['ATR_14'].tail(50).mean()
         atr_ratio = latest['ATR_14'] / historical_atr if historical_atr > 0 else 1.0
         
-        # --- Phase 18: CHAOS VETO (Flash Crash Protection) ---
-        if atr_ratio > 3.0:
+        # --- Flash Crash Protection ---
+        chaos_threshold = config.get("trading.regime_chaos_atr_ratio", 3.0)
+        if atr_ratio > chaos_threshold:
             res = "PARABOLIC_CHAOS"
             logger.warning(f"CHAOS DETECTED: ATR Ratio is {atr_ratio:.2f}. System Blackout.")
             return res, self.REGIMES[res]

@@ -16,18 +16,18 @@ class FileLock:
                 logging.warning(f"Lock timeout for {self.lock_file}. Proceeding with caution.")
                 break
             time.sleep(0.1)
-        
+        # WARNING: TOCTOU race condition - check and create should be atomic
         try:
             with open(self.lock_file, "w") as f:
                 f.write(str(os.getpid()))
-        except: pass
+        except OSError as e: pass  # Lock file may already exist
 
     def release(self):
         """Delete the lock file."""
         if os.path.exists(self.lock_file):
             try:
                 os.remove(self.lock_file)
-            except: pass
+            except OSError: pass  # Lock file may already be removed
 
 def atomic_write_json(file_path, data):
     """Safely write JSON to a file using a temporary file and locking."""
@@ -53,7 +53,7 @@ def atomic_read_json(file_path, default=None):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except:
+    except (json.JSONDecodeError, OSError) as e:
         return default
     finally:
         lock.release()

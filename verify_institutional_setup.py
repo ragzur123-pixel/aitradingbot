@@ -14,27 +14,27 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def verify_setup():
-    print("--- 🔍 SYSTEM READINESS CHECK ---")
+    print("--- SYSTEM READINESS CHECK ---")
 
     # 1. Check Ollama (Llama 3.1)
     try:
         url = "http://localhost:11434/api/tags"
         res = requests.get(url, timeout=5)
         if res.status_code == 200:
-            print("✅ OLLAMA: Online (Llama 3.1 detected)")
+            print("[SUCCESS] OLLAMA: Online")
         else:
-            print("❌ OLLAMA: App is running but API returned error.")
+            print("[ERROR] OLLAMA: App is running but API returned error.")
     except:
-        print("❌ OLLAMA: Not reachable. Is the app running?")
+        print("[ERROR] OLLAMA: Not reachable. Is the app running?")
 
     # 2. Check IBKR Gateway
     try:
         ib = IB()
         ib.connect('127.0.0.1', 7497, clientId=999)
-        print("✅ IBKR: Connected to Gateway (DMA Active)")
+        print("[SUCCESS] IBKR: Connected to Gateway")
         ib.disconnect()
     except:
-        print("❌ IBKR: Could not connect to Gateway on port 7497.")
+        print("[ERROR] IBKR: Could not connect to Gateway on port 7497.")
 
     # 3. Check Polygon API
     poly_key = os.getenv("POLYGON_API_KEY")
@@ -43,13 +43,13 @@ def verify_setup():
             url = f"https://api.polygon.io/v2/last/trade/AAPL?apiKey={poly_key}"
             res = requests.get(url, timeout=5)
             if res.status_code == 200:
-                print("✅ POLYGON: API Key Valid (Pro-Data Active)")
+                print("[SUCCESS] POLYGON: API Key Valid")
             else:
-                print(f"❌ POLYGON: API Error {res.status_code}. Check your key.")
+                print(f"[ERROR] POLYGON: API Error {res.status_code}. Check your key.")
         except:
-            print("❌ POLYGON: Network error.")
+            print("[ERROR] POLYGON: Network error.")
     else:
-        print("❌ POLYGON: Key missing in .env")
+        print("[ERROR] POLYGON: Key missing in .env")
 
 if __name__ == "__main__":
     verify_setup()

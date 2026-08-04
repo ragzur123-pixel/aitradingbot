@@ -1,17 +1,16 @@
+"""Background risk management daemon. Polls positions and enforces stop-loss/take-profit rules."""
 import os
 import json
 import time
 import logging
 from datetime import datetime
 from market_feed import get_live_market_data
-from indicators import add_indicators
-from sentiment_sentinel import HarvardConsensusEngine
+from sentiment_sentinel import SentimentAnalyzer
 from utils import setup_logging
 from notifier import Notifier
 from config_loader import config
 from atomic_ops import atomic_read_json, atomic_write_json
 
-# Setup logging
 logger = setup_logging("risk_manager")
 notifier = Notifier()
 
@@ -70,12 +69,12 @@ def send_daily_summary():
         daily_pl = sum(t.get("profit_loss", 0.0) for t in today_trades)
         
         msg = (
-            f"📅 <b>Daily Performance Summary ({today})</b>\n"
+            f"<b>Daily Performance Summary ({today})</b>\n"
             f"Trades Closed: {len(today_trades)}\n"
             f"Wins: {wins} | Losses: {losses}\n"
             f"Daily P/L: ${daily_pl:+.2f}\n"
             f"Total Account P/L: ${state.get('total_pl', 0.0):+.2f}\n\n"
-            f"📜 <b>Recent Trading Logs:</b>\n"
+            f"<b>Recent Trading Logs:</b>\n"
             f"<pre>{notifier.get_log_tail('trading_system.log', lines=15)}</pre>"
         )
         
@@ -119,24 +118,20 @@ class DynamicRegimeClassifier:
             return 2.5, 3.0
 
 def calculate_deterministic_risk_levels(df, direction, entry_price):
-    """
-    Calculates Stop-Loss and Take-Profit based on Market Microstructure (Math).
-    Now uses DYNAMIC REGIME multipliers.
-    """
+    """ATR-based stop loss and take profit calculation."""
     from geometry import calculate_volume_profile, calculate_volatility_floor
     from indicators import calculate_atr
     
-    # 1. Regime-Based Multipliers
+    # Regime-Based Multipliers
     sl_mult, tp_ratio = DynamicRegimeClassifier.get_regime_multipliers(df)
     
-    # 2. Volatility Anchoring (ATR)
+    # Volatility Anchoring
     atr = calculate_atr(df, 14).iloc[-1]
     v_floor = calculate_volatility_floor(df)
     
-    # Use Dynamic ATR multiplier, but at least 3.0x Noise Floor
     sl_dist = max(atr * sl_mult, v_floor * 3.0)
     
-    # 3. Level Anchoring (Volume POC)
+    # Level Anchoring
     poc, va_low, va_high = calculate_volume_profile(df)
     
     if direction == "LONG":
@@ -190,7 +185,7 @@ def monitor_active_trades():
         if not active_trades:
             return
 
-        sentinel = HarvardConsensusEngine()
+        sentinel = SentimentAnalyzer()
 
         for trade in active_trades:
             ticker = trade["asset"]
@@ -236,9 +231,22 @@ def monitor_active_trades():
                     res = executor.client.close_position(ticker)
                     logger.info(f"ALPACA Position Closed for {ticker}.")
                 except Exception as e:
-                    logger.error(f"Failed to close position: {e}")
+                    logger.error(f"Failed to close position via close_position: {e}")
                     # Fallback to market order if close_position fails
-                    continue
+                    from alpaca.trading.requests import MarketOrderRequest
+                    from alpaca.trading.enums import TimeInForce
+                    try:
+                        req = MarketOrderRequest(
+                            symbol=ticker,
+                            qty=qty,
+                            side=side,
+                            time_in_force=TimeInForce.GTC
+                        )
+                        executor.client.submit_order(req)
+                        logger.warning(f"FALLBACK MARKET ORDER EXECUTED for {ticker}")
+                    except Exception as fallback_e:
+                        logger.error(f"FALLBACK FAILED. Manual intervention required for {ticker}: {fallback_e}")
+                        continue
 
                 if direction == "LONG":
                     pl = (current_price - float(trade["entry_price"])) * qty

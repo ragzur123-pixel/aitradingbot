@@ -1,4 +1,4 @@
-import os
+"""Global macro veto based on lead-lag relationships."""
 import yfinance as yf
 import logging
 from utils import setup_logging
@@ -8,38 +8,46 @@ logger = setup_logging("global_sentinel")
 
 from pro_data_bridge import ProDataBridge
 
-# ... (logger setup)
-
 class GlobalSentinel:
-    """
-    Monitors Global Macro 'Lead' assets to provide a Global Veto.
-    Now uses Polygon.io as the primary data foundation.
-    """
+    """Global macro veto based on lead-lag relationships."""
     def __init__(self):
         self.pro_bridge = ProDataBridge()
 
     def get_macro_weather(self):
         """Fetches current state of global lead assets."""
         weather = {}
-        leads = ["EURUSD", "AAPL", "XAUUSD"] # Example lead assets
+        leads = {
+            "DXY": "DX-Y.NYB",
+            "VIX": "^VIX",
+            "US10Y": "^TNX",
+            "EURUSD": "EURUSD=X"
+        }
         
-        for name in leads:
+        for name, ticker in leads.items():
             # 1. Try Polygon (Primary)
-            df = self.pro_bridge.get_macro_data(name)
+            df = self.pro_bridge.get_macro_data(ticker)
             
             # 2. Try yfinance (Fallback)
             if df is None or df.empty:
                 logger.info(f"Polygon failed for {name}. Falling back to yfinance.")
                 try:
-                    df = yf.download(name, period="2d", interval="1h", progress=False)
-                except: continue
+                    df = yf.download(ticker, period="2d", interval="1h", progress=False)
+                except Exception as e: 
+                    logger.error(f"FATAL: Macro data fetch failed for {name}: {e}")
+                    raise ConnectionError(f"Macro data unavailable for {name}")
 
             if df is not None and not df.empty:
-                latest = df['Close'].iloc[-1]
-                prev = df['Close'].iloc[-5] 
-                change = (latest - prev) / prev
-                weather[name] = {"price": latest, "5h_change": change}
-                
+                if hasattr(df.columns, 'nlevels') and df.columns.nlevels > 1:
+                    df.columns = df.columns.get_level_values(0)
+                try:
+                    latest = float(df['Close'].iloc[-1])
+                    prev = float(df['Close'].iloc[-5]) if len(df) >= 5 else latest
+                    change = (latest - prev) / prev
+                    weather[name] = {"price": latest, "5h_change": change}
+                except Exception as e:
+                    logger.error(f"Failed to parse macro data for {name}: {e}")
+                    raise
+        
         return weather
 
     def check_global_veto(self, ticker, direction):
@@ -54,8 +62,9 @@ class GlobalSentinel:
         vix_price = weather.get("VIX", {}).get("price", 20)
 
         # 1. RISK-OFF VETO (VIX)
-        if vix_price > 30 and direction == "LONG":
-            return True, "GLOBAL_PANIC: VIX > 30. Risk-Off Veto active."
+        vix_threshold = config.get("trading.vix_veto_threshold", 30.0)
+        if vix_price > vix_threshold and direction == "LONG":
+            return True, f"GLOBAL_PANIC: VIX > {vix_threshold}. Risk-Off Veto active."
 
         # 2. DOLLAR STRENGTH VETO
         # If DXY is pumping (>0.5% in 5h), VETO any trade against the dollar

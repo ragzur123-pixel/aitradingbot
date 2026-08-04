@@ -6,7 +6,7 @@ import os
 
 # Add root to path to import local modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from geometry import calculate_swing_points, calculate_fvg, calculate_smt_divergence, check_geometric_distance
+from geometry import calculate_swing_points, calculate_fvg, calculate_smt_divergence, price_distance
 
 class TestGeometry(unittest.TestCase):
     def setUp(self):
@@ -50,7 +50,7 @@ class TestGeometry(unittest.TestCase):
         self.assertEqual(smt, "BULLISH_SMT_DIVERGENCE")
 
     def test_check_geometric_distance(self):
-        dist = check_geometric_distance(100.0, 102.5)
+        dist = price_distance(100.0, 102.5)
         self.assertEqual(dist, 2.5)
 
 if __name__ == "__main__":

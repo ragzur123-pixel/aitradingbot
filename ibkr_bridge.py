@@ -4,6 +4,11 @@ from config_loader import config
 
 # Using ib_insync for high-level IBKR API interaction
 # Requires: pip install ib_insync
+import asyncio
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
 try:
     from ib_insync import IB, Stock, LimitOrder, MarketOrder
 except ImportError:
@@ -12,11 +17,7 @@ except ImportError:
 logger = logging.getLogger("ibkr_bridge")
 
 class IBKRBridge:
-    """
-    Direct Market Access (DMA) Bridge for IBKR Pro.
-    Bypasses Retail PFOF (Payment for Order Flow).
-    Target: Launch Day ($10k+ Fund).
-    """
+    """IBKR Pro integration stub."""
     def __init__(self):
         self.ib = None
         self.connected = False
@@ -29,23 +30,36 @@ class IBKRBridge:
             self.ib = IB()
             self.ib.connect('127.0.0.1', self.port, clientId=self.client_id)
             self.connected = True
-            logger.info(f"IBKR: Connected to DMA Gateway on port {self.port}")
+            logger.info(f"IBKR: Connected on port {self.port}")
         except Exception as e:
             logger.error(f"IBKR: Connection Failed: {e}")
             self.connected = False
 
     def get_market_price(self, symbol):
-        """Fetches Institutional Mid-Price from IBKR."""
-        if not self.connected: return None
+        """Fetches market price. Uses market_feed as a fallback if not connected."""
+        if not self.connected:
+            from market_feed import get_live_market_data
+            logger.warning(f"IBKR: Simulation Mode - Fetching {symbol} via market_feed")
+            df = get_live_market_data(symbol, period="1d", interval="1d")
+            if df is not None and not df.empty:
+                return float(df['Close'].iloc[-1])
+            return None
+        
         contract = Stock(symbol, 'SMART', 'USD')
-        # ... (Institutional Tick logic)
+        # True IBKR integration would request tick data here:
+        # ticker = self.ib.reqMktData(contract, '', False, False)
+        # self.ib.sleep(2)
+        # return ticker.marketPrice()
+        
+        # In absence of full TWS API, fallback to market_feed
+        from market_feed import get_live_market_data
+        df = get_live_market_data(symbol, period="1d", interval="1d")
+        if df is not None and not df.empty:
+            return float(df['Close'].iloc[-1])
         return None
 
     def apply_randomized_offset(self, price, side):
-        """
-        Adds a random jitter (0.01% to 0.05%) to the limit price.
-        Prevents being detected as a 'Retail VWAP Bot' by HFT predators.
-        """
+        """Adds small random jitter to limit price."""
         import random
         jitter_pct = random.uniform(0.0001, 0.0005)
         offset = price * jitter_pct
@@ -56,9 +70,7 @@ class IBKRBridge:
             return price + offset
 
     def execute_dma_order(self, symbol, side, qty, limit_price=None):
-        """
-        Executes a DMA order with Randomized Tactical Offsets.
-        """
+        """Executes an order."""
         if not self.connected:
             logger.warning(f"IBKR: Simulation Mode - Executing {side} {symbol} (DMA)")
             return {"status": "SIMULATED", "order_id": "DMA_MOCK"}

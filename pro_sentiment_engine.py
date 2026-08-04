@@ -8,10 +8,7 @@ from config_loader import config
 logger = setup_logging("pro_sentiment")
 
 class ProSentimentEngine:
-    """
-    Institutional News Sentiment using Polygon.io.
-    Bypasses unreliable scrapers and provides high-res headline analysis.
-    """
+    """Polygon.io news sentiment stub."""
     def __init__(self):
         self.api_key = os.getenv("POLYGON_API_KEY")
         self.base_url = "https://api.polygon.io/v2/reference/news"
@@ -38,15 +35,28 @@ class ProSentimentEngine:
                 if not news: return {"score": 0.0, "confidence": 0.1}
 
                 # High-res logic: analyze headlines + summaries
-                headlines = [n.get("title", "") for n in news]
+                headlines_str = " ".join([n.get("title", "") for n in news])
                 
-                # Here we would normally use Llama 3.1 to score these locally!
-                # For now, we'll return the count as a proxy for 'Urgency'
-                return {
-                    "headlines": headlines,
-                    "urgency_score": len(headlines) / 10,
-                    "status": "ONLINE"
-                }
+                try:
+                    from local_llm_client import LocalLLMClient
+                    llm = LocalLLMClient()
+                    prompt = f"Analyze these news headlines for {clean_ticker} and provide a sentiment score from -1.0 (very bearish) to 1.0 (very bullish). Only output the float number.\n\nHeadlines:\n{headlines_str}"
+                    res_llm = llm.invoke(prompt)
+                    score_str = res_llm.content.strip()
+                    # Try to parse the float securely
+                    import re
+                    match = re.search(r"[-+]?\d*\.\d+|\d+", score_str)
+                    if match:
+                        score = float(match.group(0))
+                        # Clamp between -1.0 and 1.0
+                        score = max(-1.0, min(1.0, score))
+                    else:
+                        score = 0.0
+                        
+                    return {"score": score, "confidence": 0.8, "status": "LLM_SCORED"}
+                except Exception as e:
+                    logger.error(f"Local Llama sentiment scoring failed: {e}")
+                    return {"score": 0.0, "confidence": 0.1, "status": "LLM_FAILED"}
             else:
                 logger.error(f"Polygon News API Error: {res.status_code}")
                 return {"score": 0.0, "confidence": 0.0, "status": "OFFLINE"}

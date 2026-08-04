@@ -20,11 +20,25 @@ class HedgedPositionSizer:
         # For this 'Zero-Cost' researcher, we use a conservative limit.
         max_fee = config.get("trading.max_borrow_fee_apr", 5.0)
         
-        # Placeholder for real-time borrow fee check
-        # High-Beta Russell stocks are usually HTB. Large-Caps are usually ETB (Easy).
-        is_htb = False 
-        estimated_fee = 0.5 if not is_htb else 25.0
-        
+        try:
+            from cro_risk import AlpacaExecutor
+            executor = AlpacaExecutor()
+            if executor.client:
+                asset = executor.client.get_asset(ticker)
+                if not asset.shortable:
+                    return False, 99.0
+                if not asset.easy_to_borrow:
+                    # Hard-to-borrow assets often carry high fees
+                    estimated_fee = 20.0
+                else:
+                    estimated_fee = 1.0
+            else:
+                # Simulation fallback
+                estimated_fee = 2.0
+        except Exception as e:
+            logger.error(f"Failed to fetch borrow info for {ticker}: {e}")
+            return False, 10.0
+
         if estimated_fee > max_fee:
             return False, estimated_fee
         return True, estimated_fee
@@ -41,6 +55,9 @@ class HedgedPositionSizer:
         
         # We risk the 'risk_usd' amount on the PRIMARY asset (Asset A)
         # Quantity A is simple
+        if price_a == 0.0 or price_b == 0.0:
+            raise ZeroDivisionError("Asset prices cannot be zero during quantity calculation.")
+            
         qty_a = risk_usd / price_a
         
         # Quantity B must neutralize the Beta of A

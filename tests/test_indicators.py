@@ -24,8 +24,8 @@ class TestIndicators(unittest.TestCase):
         # Check if RSI values are between 0 and 100
         self.assertTrue(all((rsi >= 0) & (rsi <= 100)))
         # Check handling of small data
-        small_rsi = calculate_rsi(self.df['Close'][:5], period=14)
-        self.assertEqual(list(small_rsi), [50.0] * 5)
+        with self.assertRaises(ValueError):
+            calculate_rsi(self.df['Close'][:5], period=14)
 
     def test_calculate_sma(self):
         sma = calculate_sma(self.df['Close'], period=5)

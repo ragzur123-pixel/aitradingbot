@@ -8,13 +8,9 @@ from config_loader import config
 logger = setup_logging("fundamental_divergence")
 
 class FundamentalDivergence:
-    """
-    Operation: Terminal Alpha - Fundamental Divergence 4.0
-    Pivoted to 'Quiet Niche' (Dual-Listed / Basis).
-    Now detects 'Carry-Leakage' and 'Liquidity Vacuums'.
-    """
+    """Analyzes basis divergence between asset and anchor."""
 
-    # Quiet Niche Mapping (Boring but Stationary)
+    # Asset Mapping
     NICHE_MAP = {
         "GOLD": {"anchor": "GDX", "currency": "USDCAD=X", "local_rate_proxy": "^IRX"}, # Barrick (Dual)
         "BHP": {"anchor": "PICK", "currency": "USDAUD=X", "local_rate_proxy": "^TNX"}, # BHP ADR
@@ -32,13 +28,14 @@ class FundamentalDivergence:
     def analyze(self, lookback_days=60):
         logger.info(f"Analyzing Quiet Niche: {self.primary_ticker} vs {self.anchor_ticker}")
         
-        # 1. Fetch Data
-        df_p = get_alpaca_data(self.primary_ticker, period_days=lookback_days)
-        df_a = get_alpaca_data(self.anchor_ticker, period_days=lookback_days)
+        from market_feed import get_live_market_data
         
-        import yfinance as yf
-        df_fx = yf.download(self.fx_ticker, period=f"{lookback_days}d", interval="1d", progress=False)
-        df_rate = yf.download(self.rate_ticker, period=f"{lookback_days}d", interval="1d", progress=False)
+        # 1. Fetch Data
+        df_p = get_live_market_data(self.primary_ticker, period=f"{lookback_days}d", interval="1d")
+        df_a = get_live_market_data(self.anchor_ticker, period=f"{lookback_days}d", interval="1d")
+        
+        df_fx = get_live_market_data(self.fx_ticker, period=f"{lookback_days}d", interval="1d")
+        df_rate = get_live_market_data(self.rate_ticker, period=f"{lookback_days}d", interval="1d")
 
         if any(d is None or d.empty for d in [df_p, df_a, df_fx, df_rate]):
             logger.error("Divergence Ingestion Failed.")
@@ -57,7 +54,8 @@ class FundamentalDivergence:
         combined['ratio'] = combined['primary'] / combined['anchor']
         
         # Carry-Leakage: If local rate > US rate, holding ADR long has negative carry
-        us_rate = yf.download("^TNX", period="1d", progress=False)['Close'].iloc[-1]
+        df_us_rate = get_live_market_data("^TNX", period="5d", interval="1d")
+        us_rate = df_us_rate['Close'].iloc[-1] if (df_us_rate is not None and not df_us_rate.empty) else 0.0
         local_rate = combined['rate'].iloc[-1]
         carry_risk = local_rate - us_rate # Spread in yield
         
@@ -76,12 +74,12 @@ class FundamentalDivergence:
         risk_flags = []
 
         if abs(z_score) > 3.0:
-            # VETO: Liquidity Vacuum (Low relative volume during divergence)
+            # Veto: Low volume
             if curr_vol_z < -1.5:
                 signal = "LIQUIDITY_VETO"
                 risk_flags.append(f"Liquidity Vacuum: Volume Z-score is {curr_vol_z:.2f}")
             
-            # VETO: Excessive Carry Leakage (> 3% yield spread)
+            # Veto: High rate spread
             elif carry_risk > 3.0:
                 signal = "CARRY_VETO"
                 risk_flags.append(f"Negative Carry: Rate spread is {carry_risk:.2f}%")

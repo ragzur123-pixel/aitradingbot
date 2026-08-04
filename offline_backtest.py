@@ -1,3 +1,4 @@
+"""Offline backtesting simulator."""
 import os
 import json
 import logging
@@ -5,12 +6,12 @@ import time
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timedelta, timezone
-from market_feed import add_indicators, get_structured_context
 from indicators import add_indicators
 import importlib
-trading_bot = importlib.import_module("5_trading_bot")
-calculate_position_size = trading_bot.calculate_position_size
-get_calibrated_probability = trading_bot.get_calibrated_probability
+
+
+# trading_bot = importlib.import_module("5_trading_bot")
+import asyncio
 
 from config_loader import config
 
@@ -34,7 +35,7 @@ class StrategySimulator:
         if self.active_trade:
             return
 
-        # Phase 18: Realistic Entry Slippage
+        # Realistic Entry Slippage
         # We assume the bot is slow and gets a worse fill than the 'Last Close'
         slippage_bps = config.get("trading.fixed_spread_bps", 2.0) + config.get("trading.latency_tax_bps", 2.5)
         friction_factor = 1 + (slippage_bps / 10000)
@@ -61,8 +62,8 @@ class StrategySimulator:
         }
         logger.info(f"SIM ENTRY: {direction} {ticker} at {real_entry:.5f} | SL: {stop_loss:.5f}")
 
-    def update(self, current_price, atr, timestamp):
-        """Updates active trade and checks for exits."""
+    def update(self, current_bar, atr, timestamp):
+        """Updates active trade and checks for exits using intra-bar highs/lows."""
         if not self.active_trade:
             return
 
@@ -70,39 +71,50 @@ class StrategySimulator:
         direction = trade["direction"]
         exit_triggered = False
         reason = ""
+        current_price = current_bar['Close']
+        high_price = current_bar['High']
+        low_price = current_bar['Low']
         
         trail_mult = config.get("trading.trailing_stop_atr_mult", 2.0)
 
         if direction == "LONG":
-            trade["high_water_mark"] = max(trade["high_water_mark"], current_price)
-            trailing_stop = trade["high_water_mark"] - (atr * trail_mult)
+            trade["high_water_mark"] = max(trade["high_water_mark"], high_price)
+            new_trailing_stop = trade["high_water_mark"] - (atr * trail_mult)
+            trade["trailing_stop"] = max(trade.get("trailing_stop", 0), new_trailing_stop)
             
-            if current_price <= trade["stop_loss"]:
+            if low_price <= trade["stop_loss"]:
                 exit_triggered = True
                 reason = "STOP_LOSS"
-            elif current_price >= trade["take_profit"]:
+                current_price = trade["stop_loss"]
+            elif high_price >= trade["take_profit"]:
                 exit_triggered = True
                 reason = "TAKE_PROFIT"
-            elif current_price <= trailing_stop:
+                current_price = trade["take_profit"]
+            elif low_price <= trade["trailing_stop"]:
                 exit_triggered = True
                 reason = "TRAILING_STOP"
+                current_price = trade["trailing_stop"]
         
         else: # SHORT
-            trade["low_water_mark"] = min(trade["low_water_mark"], current_price)
-            trailing_stop = trade["low_water_mark"] + (atr * trail_mult)
+            trade["low_water_mark"] = min(trade["low_water_mark"], low_price)
+            new_trailing_stop = trade["low_water_mark"] + (atr * trail_mult)
+            trade["trailing_stop"] = min(trade.get("trailing_stop", float('inf')), new_trailing_stop)
             
-            if current_price >= trade["stop_loss"]:
+            if high_price >= trade["stop_loss"]:
                 exit_triggered = True
                 reason = "STOP_LOSS"
-            elif current_price <= trade["take_profit"]:
+                current_price = trade["stop_loss"]
+            elif low_price <= trade["take_profit"]:
                 exit_triggered = True
                 reason = "TAKE_PROFIT"
-            elif current_price >= trailing_stop:
+                current_price = trade["take_profit"]
+            elif high_price >= trade["trailing_stop"]:
                 exit_triggered = True
                 reason = "TRAILING_STOP"
+                current_price = trade["trailing_stop"]
 
         if exit_triggered:
-            # Phase 18: Exit Slippage
+            # Exit Slippage
             # Assume 0.05% slippage on exit
             slippage_pct = config.get("trading.slippage_buffer_pct", 0.0005)
             real_exit = current_price * (1 - slippage_pct) if direction == "LONG" else current_price * (1 + slippage_pct)
@@ -143,27 +155,39 @@ def run_backtest(ticker="AAPL", days=30):
         current_bar = df.iloc[i]
         timestamp = df.index[i]
         
-        # Every 4 hours (simulated), we 'Wake the LLM'
-        if i % 16 == 0: 
+        if i % 16 == 0 and not sim.active_trade: 
             logger.info(f"Processing Simulated Interval: {timestamp}")
+            # --- LLM DECISION PIPELINE ---
+            from master_orchestrator import DecisionEngine
+            engine = DecisionEngine()
             
-            # --- MOCK LLM DECISION ---
-            # In a real backtest, you would pass df.iloc[:i] to the bot.
-            # Here we simulate the logic for speed.
-            prob = 0.55 # Assume 55% win rate strategy
-            payoff = 2.5 # Assume 2.5:1 RR
-            
-            # Use real position sizing logic
-            risk_val, _, _ = calculate_position_size(prob, payoff, sim.balance, current_bar['Close'])
-            
-            if risk_val > 0 and not sim.active_trade:
-                # Random direction for demo, in real it uses LLM thesis
-                direction = "LONG" if current_bar['RSI_14'] < 40 else "SHORT" if current_bar['RSI_14'] > 60 else None
-                if direction:
-                    sim.simulate_trade(ticker, direction, current_bar['Close'], risk_val, current_bar['ATR_14'], timestamp)
+            try:
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                # Run audit_ticker and wait for completion
+                loop.run_until_complete(engine.audit_ticker(ticker, risk_scaler=1.0))
+                
+                # Check if the DecisionEngine executed a trade by peeking at the journal
+                from atomic_ops import atomic_read_json
+                journal = atomic_read_json(config.get("system.journal_path", "trade_journal.json"), [])
+                if journal and journal[-1].get("asset") == ticker and journal[-1].get("entry_time") >= timestamp.timestamp():
+                    last_trade = journal[-1]
+                    sim.simulate_trade(
+                        ticker,
+                        last_trade.get("direction"),
+                        current_bar['Close'],
+                        last_trade.get("risk_amount", 50.0),
+                        current_bar['ATR_14'],
+                        timestamp
+                    )
+            except Exception as e:
+                logger.error(f"DecisionEngine failed during simulation: {e}")
 
         # Update Simulator
-        sim.update(current_bar['Close'], current_bar['ATR_14'], timestamp)
+        sim.update(current_bar, current_bar['ATR_14'], timestamp)
 
     # 3. Final Report
     wins = [t for t in sim.trades if t['pl'] > 0]
@@ -171,13 +195,11 @@ def run_backtest(ticker="AAPL", days=30):
     win_rate = len(wins) / len(sim.trades) if sim.trades else 0
     total_pl = sim.balance - 10000
     
-    print("\n" + "="*50)
-    print(f" BACKTEST COMPLETE: {ticker}")
-    print(f" Total Trades: {len(sim.trades)}")
-    print(f" Win Rate: {win_rate:.1%}")
-    print(f" Total P/L: ${total_pl:.2f}")
-    print(f" Final Balance: ${sim.balance:.2f}")
-    print("="*50)
+    print(f"\nBACKTEST COMPLETE: {ticker}")
+    print(f"Total Trades: {len(sim.trades)}")
+    print(f"Win Rate: {win_rate:.1%}")
+    print(f"Total P/L: ${total_pl:.2f}")
+    print(f"Final Balance: ${sim.balance:.2f}")
 
 if __name__ == "__main__":
     run_backtest("AAPL", days=14)

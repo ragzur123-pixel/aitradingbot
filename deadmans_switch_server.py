@@ -32,12 +32,12 @@ def close_all_positions():
     global emergency_triggered
     if emergency_triggered: return
     
-    logger.critical("🚨 HEARTBEAT LOST! TRIGGERING EMERGENCY SHUTDOWN...")
+    logger.critical("[EMERGENCY] HEARTBEAT LOST! TRIGGERING EMERGENCY SHUTDOWN...")
     try:
         client = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
         # Close all positions
         client.close_all_positions(cancel_orders=True)
-        logger.info("✅ All Alpaca positions closed and orders cancelled.")
+        logger.info("[SUCCESS] All Alpaca positions closed and orders cancelled.")
         emergency_triggered = True
     except Exception as e:
         logger.error(f"Failed to close positions: {e}")

@@ -38,21 +38,21 @@ def main():
     while True:
         clear_screen()
         print("\n" + "="*70)
-        print("      🏛️  OPERATION: TERMINAL ALPHA - INSTITUTIONAL DASHBOARD")
+        print("      OPERATION: TERMINAL DASHBOARD")
         print("      " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         print("="*70)
         
         # 1. SYSTEM HEALTH
         health, last_pulse = get_system_health()
         pulse_str = datetime.fromtimestamp(last_pulse).strftime("%H:%M:%S") if last_pulse else "NEVER"
-        health_icon = "🟢" if health == "HEALTHY" else "🔴"
+        health_icon = "[+]" if health == "HEALTHY" else "[-]"
         print(f"STATUS: {health_icon} {health} | LAST PULSE: {pulse_str}")
         print("-" * 70)
 
         # 2. PERFORMANCE STATS
         trades_df = get_db_stats()
         if trades_df is None or trades_df.empty:
-            print("\n[!] No shadow trades logged. Pipeline: ACCUMULATION PHASE.")
+            print("\n[!] No shadow trades logged. Pipeline: ACCUMULATION.")
             total_pnl = 0.0
             win_rate = 0.0
         else:
@@ -60,9 +60,9 @@ def main():
             wins = len(trades_df[trades_df['slippage_adj_pnl'] > 0])
             win_rate = (wins / len(trades_df)) * 100 if len(trades_df) > 0 else 0
             
-            print(f"✅ Total Shadow Trades: {len(trades_df)}")
-            print(f"✅ Win Rate: {win_rate:.1f}%")
-            print(f"✅ Net P&L (Adj): ${total_pnl:+.2f}")
+            print(f"Total Shadow Trades: {len(trades_df)}")
+            print(f"Win Rate: {win_rate:.1f}%")
+            print(f"Net P&L (Adj): ${total_pnl:+.2f}")
             
             print("\nRECENT ALPHA RESEARCH:")
             last_5 = trades_df.tail(5).copy()
@@ -89,21 +89,21 @@ def main():
         est_launch_date = datetime.now() + timedelta(days=months_to_target * 30)
 
         print("\n" + "-"*70)
-        print(f"💰 CURRENT TOTAL FUND: ${total_fund:,.2f} / ${target_capital:,.0f}")
-        print(f"🎯 PROGRESS: [", end="")
+        print(f"CURRENT TOTAL FUND: ${total_fund:,.2f} / ${target_capital:,.0f}")
+        print(f"PROGRESS: [", end="")
         progress_bars = int((total_fund / target_capital) * 30)
         print("#" * progress_bars + "-" * (30 - progress_bars) + f"] {(total_fund / target_capital) * 100:.1f}%")
         
-        print(f"🔒 SHADOW LOCK: {days_locked} Days Remaining (May 2027)")
-        print(f"🚀 EST. TARGET HIT: {est_launch_date.strftime('%B %Y')}")
+        print(f"SHADOW LOCK: {days_locked} Days Remaining (May 2027)")
+        print(f"EST. TARGET HIT: {est_launch_date.strftime('%B %Y')}")
         print("-" * 70)
 
         if total_fund >= target_capital and days_locked <= 0:
-            print("🏆 STATUS: READY FOR INSTITUTIONAL PIVOT (Live IBKR Pro)")
+            print("STATUS: READY FOR PIVOT (Live IBKR Pro)")
         elif total_fund >= target_capital:
-            print("⏳ STATUS: CAPITAL READY - WAITING FOR SHADOW LOCK EXPIRY")
+            print("STATUS: CAPITAL READY - WAITING FOR SHADOW LOCK EXPIRY")
         else:
-            print("🛠️  STATUS: ACCUMULATING ALPHA & CAPITAL")
+            print("STATUS: ACCUMULATING ALPHA & CAPITAL")
 
         print("\n[Ctrl+C to Exit] | Refreshing in 60s...")
         time.sleep(60)

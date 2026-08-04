@@ -5,10 +5,7 @@ from market_feed import get_live_market_data
 logger = logging.getLogger("hustle_fund_manager")
 
 class HustleFundManager:
-    """
-    Manages the 'Treasury Fund' (Index Funds) and 'Total Capital' progress.
-    Tracks 'Hustle' contributions and provides a unified dashboard for growth.
-    """
+    """Manages the Treasury Fund and Total Capital progress."""
     def __init__(self, trading_balance=1000.0):
         self.trading_balance = trading_balance
         self.hustle_cfg = config.get("hustle_fund", {})
@@ -69,8 +66,8 @@ class HustleFundManager:
         Helps decide if we should code more or hustle more.
         """
         user_wage = self.hustle_cfg.get("user_hourly_wage_usd", 25.0)
-        # Assume 10 hours a week spent on bot maintenance/dev
-        hours_spent = 40.0 
+        # Dynamically load from config rather than hardcoding 40.0
+        hours_spent = self.hustle_cfg.get("monthly_bot_hours", 40.0) 
         hustle_opportunity_cost = hours_spent * user_wage
         
         ratio = trading_profit_mtd / hustle_opportunity_cost if hustle_opportunity_cost > 0 else 0
@@ -88,16 +85,16 @@ class HustleFundManager:
         prop = self.get_prop_firm_readiness()
         
         text = (
-            f"🏛️ <b>STRATEGIC FUND DASHBOARD</b>\n"
+            f"STRATEGIC FUND DASHBOARD\n"
             f"--------------------------------\n"
-            f"💰 <b>Trading Base:</b> ${db['trading_balance']:.2f}\n"
-            f"📈 <b>Treasury Base:</b> ${db['treasury_value']:.2f}\n"
-            f"🚀 <b>Total Fund:</b> ${db['total_fund_value']:.2f}\n"
-            f"🎯 <b>Launch Goal:</b> ${db['target_capital']:.2f} ({db['progress_pct']}%)\n"
+            f"Trading Base: ${db['trading_balance']:.2f}\n"
+            f"Treasury Base: ${db['treasury_value']:.2f}\n"
+            f"Total Fund: ${db['total_fund_value']:.2f}\n"
+            f"Launch Goal: ${db['target_capital']:.2f} ({db['progress_pct']}%)\n"
             f"--------------------------------\n"
-            f"🏆 <b>PROP FIRM READINESS ($50k)</b>\n"
-            f"📊 <b>Shadow P&L:</b> ${prop['net_pnl']:.2f}\n"
-            f"🎯 <b>Target:</b> ${prop['target']:.2f} ({prop['progress_pct']}%)\n"
-            f"🛡️ <b>Status:</b> {prop['status']}\n"
+            f"PROP FIRM READINESS ($50k)\n"
+            f"Shadow P&L: ${prop['net_pnl']:.2f}\n"
+            f"Target: ${prop['target']:.2f} ({prop['progress_pct']}%)\n"
+            f"Status: {prop['status']}\n"
         )
         return text

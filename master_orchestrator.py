@@ -1,5 +1,9 @@
+"""Main trading loop orchestrator and background service manager."""
 import subprocess
 import sys
+import multiprocessing
+import asyncio
+from raw_data_processor import RawDataProcessor
 import time
 import os
 import logging
@@ -22,7 +26,6 @@ from priority_queue import AlphaQueue
 from connectivity_sentinel import ConnectivitySentinel
 from account_reconciler import AccountReconciler
 
-# Setup logging
 logger = setup_logging("orchestrator")
 notifier = Notifier()
 news_sentinel = NewsSentinel()
@@ -67,12 +70,12 @@ def check_correlation_veto(new_ticker, active_tickers):
             correlation = np.corrcoef(combined.iloc[:, 0], combined.iloc[:, 1])[0, 1]
             if correlation > threshold:
                 return False
-    except: pass
+    except Exception as e: logger.warning(f"Correlation calculation failed: {e}")
     return True
 
 def get_risk_scaler(ticker, direction="LONG"):
     """
-    Tiered Risk Gates (Phase 14 Hardening).
+    Tiered Risk Gates.
     Hard Veto (Return 0.0) | Soft Penalty (Return 0.5) | Full (1.0)
     """
     # TIER 1: HARD VETOES
@@ -122,7 +125,7 @@ def run_script(script_name, args=None):
     try:
         subprocess.run(cmd, check=True)
         return True
-    except: return False
+    except Exception as e: logger.error(f"Script failed: {e}"); return False
 
 def set_high_priority():
     if os.name == 'nt':
@@ -130,12 +133,10 @@ def set_high_priority():
             p = psutil.Process(os.getpid())
             p.nice(psutil.HIGH_PRIORITY_CLASS)
             logger.info("WINDOWS OPTIMIZATION: Priority set to HIGH.")
-        except: pass
+        except Exception as e: logger.warning(f"Priority setting failed: {e}")
 
 from evolution_engine import EvolutionEngine
 
-# Setup logging
-# ... (existing sentinels)
 evolution_engine = EvolutionEngine()
 
 def run_weekly_tasks():
@@ -143,30 +144,12 @@ def run_weekly_tasks():
     now = datetime.now()
     # Run every Sunday at 00:00
     if now.weekday() == 6 and now.hour == 0 and now.minute < 5:
-        logger.info("📅 SUNDAY STRATEGIC WINDOW: Running Evolution Engine...")
+        logger.info("SUNDAY STRATEGIC WINDOW: Running Evolution Engine...")
         evolution_engine.run_weekly_evolution()
 
-import multiprocessing
-
-def run_risk_manager():
-    """Independent process for high-frequency risk monitoring."""
-    from risk_manager import monitor_active_trades, update_state_pl, send_daily_summary
-    logger.info(">>> DETACHED RISK MANAGER STARTING (Dedicated CPU Core) <<<")
-    while True:
-        try:
-            monitor_active_trades()
-            update_state_pl()
-            send_daily_summary()
-        except Exception as e:
-            logger.error(f"Risk Manager Process Error: {e}")
-        time.sleep(5)
-
-import asyncio
-import multiprocessing
-
+from local_llm_client import LocalLLMClient
 from bayesian_self_auditor import BayesianSelfAuditor
 
-# --- PHASE 24: UNIFIED PREDATOR ARCHITECTURE ---
 class DecisionEngine:
     """Unified Decision Engine with Bayesian Calibration."""
     def __init__(self):
@@ -179,21 +162,18 @@ class DecisionEngine:
         """Unified Async Pipeline with Order Flow Intelligence and Bayesian Sizing."""
         logger.info(f"INITIATING AUDIT for {ticker}...")
         
-        # 0. WHOLE-UNIT PIVOT (Phase 26)
-        from allocator import MultiStrategyAllocator
+        # 0. WHOLE-UNIT PIVOT (Using Cro-Risk Executor directly)
         from cro_risk import AlpacaExecutor
         executor = AlpacaExecutor()
         equity = executor.get_total_equity()
-        alloc = MultiStrategyAllocator(total_equity=equity)
         
         # 1. Fetch Data
         df = get_live_market_data(ticker)
         if df is None: return
         current_price = df['Close'].iloc[-1]
         
-        # 2. Pivot & Alpha Filter
+        # 2. Alpha Filter & Sizing
         risk_usd = (equity * 0.01) * risk_scaler
-        ticker = alloc.get_tradable_ticker(ticker, risk_usd, current_price)
         
         tensor = self.processor.prepare_compressed_tensor(df)
         alpha_prompt = (
@@ -208,13 +188,24 @@ class DecisionEngine:
         res = await asyncio.to_thread(self.local_ai.invoke, alpha_prompt)
         
         if "PROCEED" not in res.content.upper():
-            logger.info(f"ALPHA VETO: {ticker} is JUNK.")
+            logger.info(f"Setup rejected: {ticker} does not meet entry criteria.")
             return
 
-        # 3. Strategic Synthesis (Phase 27 Calibration)
-        # In a real run, this would be a full Sonnet cycle.
-        # We assume Sonnet gives a Confidence Level (1-5).
-        conf_lv = 4 
+        # 3. Strategic Synthesis
+        sonnet_prompt = (
+            f"You are a Risk Auditor. Based on this alpha setup for {ticker}, how confident are you in a MEAN REVERSION play?\n"
+            f"Data: {tensor}\n"
+            "Output ONLY a single integer between 1 and 5, where 5 is maximum confidence."
+        )
+        sonnet_res = await asyncio.to_thread(self.sonnet.invoke, sonnet_prompt)
+        
+        try:
+            import re
+            match = re.search(r"[1-5]", sonnet_res.content)
+            conf_lv = int(match.group(0)) if match else 3
+        except Exception as e:
+            logger.warning(f"Confidence extraction failed: {e}. Defaulting to 3.")
+            conf_lv = 3
         
         # 4. BAYESIAN CALIBRATION
         realized_rates = self.bayesian_auditor.get_realized_edge()

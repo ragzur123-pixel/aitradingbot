@@ -8,16 +8,13 @@ from utils import setup_logging
 logger = setup_logging("pro_data_bridge")
 
 class ProDataBridge:
-    """
-    Professional Data Feed (Polygon.io).
-    Eliminates 'Toy Data' foundation (yfinance) for macro leads.
-    """
+    """Polygon.io data feed stub."""
     def __init__(self):
         self.api_key = os.getenv("POLYGON_API_KEY")
         self.base_url = "https://api.polygon.io"
 
     def get_macro_data(self, ticker, days=5):
-        """Fetch professional-grade OHLCV from Polygon."""
+        """Fetch OHLCV from Polygon."""
         if not self.api_key:
             logger.warning("POLYGON_API_KEY missing. Professional data bridge is offline.")
             return None

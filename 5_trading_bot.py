@@ -165,7 +165,8 @@ async def run_trading_bot():
         # Execution friction check
         # Assuming we can get spread data from a hypothetical get_market_depth
         # For now, we simulate a 0.5% bid-ask penalty for ADRs
-        expected_reversion_pct = abs(best_pair['zscore'] * 0.02) # Rough estimate - replace with real friction model
+        latency_tax = config.get("trading.latency_tax_bps", 200) / 10000.0
+        expected_reversion_pct = abs(best_pair['zscore'] * latency_tax) # Replaced magic 0.02
         estimated_friction = 0.012 # Estimated round-trip cost
         
         if expected_reversion_pct < estimated_friction:
@@ -181,7 +182,7 @@ async def run_trading_bot():
 
         # Real-time news and macro audit
         # Since we are on Daily/H1, the 3s delay is now an asset, not a liability.
-        logger.info(f"Initiating Real-Time Adversarial Audit for {ticker_a}/{ticker_b}...")
+        logger.info(f"Initiating Real-Time Audit for {ticker_a}/{ticker_b}...")
         headlines = news_bot.get_latest_headlines(ticker_a)
         
         model_name = config.get("models.primary.name", "llama3.1:70b")
@@ -208,7 +209,7 @@ async def run_trading_bot():
             "direction": direction_a,
             "zscore": best_pair['zscore'],
             "audit": "MATH-FIRST INSTANT ENTRY (Pre-Market Filter Passed)",
-            "conviction": 10, # TODO: derive from signal strength
+            "conviction": min(10, int(signal.get('confidence', 0.5) * 10) + 2),
             "price_a": best_pair['current_a'],
             "price_b": best_pair['current_b']
         }

@@ -6,12 +6,10 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+logger = logging.getLogger("notifier")
 
 class Notifier:
-    """
-    Unified Notification System for Telegram and Discord.
-    Handles trade alerts, system heartbeats, and error reporting.
-    """
+    """Unified Notification System for Telegram and Discord."""
     def __init__(self):
         self.telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID")
@@ -67,12 +65,12 @@ class Notifier:
         url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
         payload = {
             "chat_id": self.telegram_chat_id,
-            "text": f"🎯 <b>HITL APPROVAL REQUIRED</b>\n\n{message}\n\nShould we fire the trigger?",
+            "text": f"<b>HITL APPROVAL REQUIRED</b>\n\n{message}\n\nShould we fire the trigger?",
             "parse_mode": "HTML",
             "reply_markup": {
                 "inline_keyboard": [[
-                    {"text": "✅ FIRE", "callback_data": "APPROVE"},
-                    {"text": "❌ VETO", "callback_data": "VETO"}
+                    {"text": "FIRE", "callback_data": "APPROVE"},
+                    {"text": "VETO", "callback_data": "VETO"}
                 ]]
             }
         }
@@ -117,11 +115,11 @@ class Notifier:
 
         # Formatting based on type
         prefix = {
-            "INFO": "ℹ️ <b>[SYSTEM INFO]</b>",
-            "TRADE": "💰 <b>[TRADE ALERT]</b>",
-            "ERROR": "⚠️ <b>[SYSTEM ERROR]</b>",
-            "CRITICAL": "🚨 <b>[CRITICAL FAILURE]</b>"
-        }.get(alert_type, "ℹ️")
+            "INFO": "<b>[SYSTEM INFO]</b>",
+            "TRADE": "<b>[TRADE ALERT]</b>",
+            "ERROR": "<b>[SYSTEM ERROR]</b>",
+            "CRITICAL": "<b>[CRITICAL FAILURE]</b>"
+        }.get(alert_type, "")
 
         formatted_message = f"{prefix}\n{message}"
         
@@ -148,7 +146,7 @@ class Notifier:
     def send_log_tail(self, log_file, lines=50):
         """Sends the last N lines of a log file to notification channels."""
         tail = self.get_log_tail(log_file, lines)
-        msg = f"📜 <b>Log Tail: {log_file}</b>\n<pre>{tail}</pre>"
+        msg = f"<b>Log Tail: {log_file}</b>\n<pre>{tail}</pre>"
         self.notify(msg, alert_type="INFO")
 
 if __name__ == "__main__":

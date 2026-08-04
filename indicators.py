@@ -7,7 +7,7 @@ def calculate_rsi(series, period=14):
     Uses SMMA (Smoothed Moving Average) instead of Simple Moving Average.
     """
     if len(series) < period:
-        return pd.Series([50.0] * len(series), index=series.index)
+        raise ValueError("Insufficient data for RSI calculation")
     
     delta = series.diff()
     gain = delta.where(delta > 0, 0)

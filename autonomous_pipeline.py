@@ -43,7 +43,7 @@ async def run_script_async(script, ticker):
 async def run_operation(ticker="EURUSD=X"):
     print("="*60)
     print(f"AITradingBot: CLOCKWORK OPERATION - {ticker}")
-    print("Strategy: Local-First (Phase 1) + Strategic Alpha")
+    print("Strategy: Local-First + Strategic Alpha")
     print("="*60 + "\n")
 
     start_time = time.time()

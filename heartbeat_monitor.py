@@ -55,7 +55,7 @@ class HeartbeatMonitor:
             # If any critical service is down
             if not all(health.values()):
                 failed = [k for k, v in health.items() if not v]
-                msg = f"🚨 SYSTEMIC FAILURE: Critical services offline: {failed}. TRADING HALTED."
+                msg = f"[ERROR] SYSTEMIC FAILURE: Critical services offline: {failed}. TRADING HALTED."
                 logger.critical(msg)
                 notifier.notify(msg, alert_type="INFO")
                 db.set_state("system_health", "CRITICAL_FAIL")

@@ -5,11 +5,7 @@ from utils import setup_logging
 logger = setup_logging("contrarian_hunter")
 
 class ContrarianTrapHunter:
-    """
-    Identifies 'Retail Crowds' and 'Institutional Traps'.
-    The core Alpha generator of 2026.
-    Trades AGAINST textbook SMC patterns when Absorption is detected.
-    """
+    """Identifies threshold inversions for contrarian trades."""
     
     def identify_trap_scenarios(self, df):
         """

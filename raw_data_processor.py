@@ -8,11 +8,7 @@ from utils import setup_logging
 logger = setup_logging("raw_data_processor")
 
 class RawDataProcessor:
-    """
-    Eliminates the 'Narrative Translation Tax'.
-    Maps OHLCV and L2 data into raw numeric tensors for AI ingestion.
-    This bypasses lossy bulleted summaries and provides high-res price math.
-    """
+    """Maps OHLCV and L2 data into numeric strings."""
     def __init__(self, window_size=100):
         self.window_size = window_size
 
@@ -58,7 +54,7 @@ class RawDataProcessor:
             # CVDR: Cumulative Volume Delta Ratio (Buy-Sell Aggression)
             # IVOL: Intra-candle Volatility (High-Low / Open)
             for i, (idx, row) in enumerate(sub_15m.iterrows()):
-                cvdr = (row.get('Volume_Delta', 0) / row['Volume']) if row['Volume'] > 0 else 0
+                cvdr = (row.get('CVD_Grad', 0) / row['Volume']) if row['Volume'] > 0 else 0
                 ivol = (row['High'] - row['Low']) / row['Open']
                 micro_data.append({
                     "1H_T": h_time.strftime('%H:00'),
@@ -105,12 +101,7 @@ class RawDataProcessor:
         return f"{header}\n{csv_body}"
 
     def calculate_wick_rejection_delta(self, df):
-        """
-        Simulates Level 3 Order Flow (Absorption) using candle wicks.
-        Institutional 'Icebergs' often hide at the wicks.
-        Positive: Bullish Rejection (Buying at bottom).
-        Negative: Bearish Rejection (Selling at top).
-        """
+        """Calculates a Wick Delta Technical Indicator (approximates absorption). Not real L3 data."""
         # Upper Wick: Selling Pressure (High - max(Open, Close))
         upper_wick = df['High'] - df[['Open', 'Close']].max(axis=1)
         # Lower Wick: Buying Pressure (min(Open, Close) - Low)
@@ -118,9 +109,10 @@ class RawDataProcessor:
         
         # Simulated Delta: Buying Wick Pressure - Selling Wick Pressure
         # Normalized by Body Size to find 'Absorption' (High Wick, Small Body)
-        body_size = abs(df['Close'] - df['Open']).replace(0, 0.0001)
+        body_size = abs(df['Close'] - df['Open'])
+        body_size = np.where(body_size < 1e-6, 1e-6, body_size)
         sim_delta = (lower_wick - upper_wick) / body_size
-        return sim_delta.round(3)
+        return pd.Series(sim_delta, index=df.index).round(3)
 
     def prepare_compressed_tensor(self, df):
         """
@@ -135,9 +127,10 @@ class RawDataProcessor:
         
         # 1. Normalize
         recent['CP'] = (recent['Close'] / base_price - 1) * 100 # Close Pct
-        recent['VR'] = (recent['Volume'] / recent['Volume'].mean()) # Vol Ratio
+        vol_mean = recent['Volume'].mean()
+        recent['VR'] = (recent['Volume'] / vol_mean) if vol_mean > 1e-9 else 0.0 # Vol Ratio
         
-        # Simulated L3 Ingestion
+        # Wick Delta Indicator Ingestion
         recent['WD'] = self.calculate_wick_rejection_delta(recent)
         recent['PA'] = recent['CP'].diff().diff() # Price Acceleration
         
@@ -155,4 +148,4 @@ if __name__ == "__main__":
     from market_feed import get_live_market_data
     df = get_live_market_data("AAPL")
     processor = RawDataProcessor()
-    print(processor.prepare_tensor_payload(df))
+    print(processor.prepare_compressed_tensor(df))

@@ -1,4 +1,6 @@
+"""Generates validated market snapshots with proximity checks to key price levels."""
 import os
+import sys
 import json
 import logging
 import time
@@ -6,8 +8,8 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from typing import List, Optional
 from market_feed import get_live_market_data
-from sentiment_sentinel import HarvardConsensusEngine
-from geometry import get_geometric_anchors
+from sentiment_sentinel import SentimentAnalyzer
+from geometry import get_geometric_anchors, calculate_volume_profile, calculate_volatility_floor, calculate_swing_points, price_distance, calculate_fvg, detect_liquidity_sweeps
 from utils import setup_logging
 from risk_manager import check_market_regime
 
@@ -16,8 +18,8 @@ logger = setup_logging("market_snapshot")
 
 SNAPSHOT_FILE = "market_snapshot.md"
 
-# --- Phase 9: Pydantic Validation Layer ---
 class MarketDataSchema(BaseModel):
+    """Validated market data snapshot."""
     ticker: str
     last_close: float = Field(gt=0)
     rsi: float = Field(ge=0, le=100)
@@ -38,17 +40,13 @@ class MarketDataSchema(BaseModel):
         return v
 
 def create_market_snapshot(ticker="EURUSD=X"):
-    """
-    Clockwork Snapshot Generation. 
-    Now includes Pydantic Validation and Math-Anchored Geometry.
-    """
-    logger.info(f"Generating Mission-Critical Snapshot for {ticker}...")
+    """Generates market snapshot with geometry checks."""
+    logger.info(f"Generating snapshot for {ticker}...")
 
-    # 1. Pull Live Feeds
     df = get_live_market_data(ticker)
     if df is None: return False
     
-    # --- Phase 18: MARKET REGIME FILTER (Safety Gate) ---
+    # Market regime filter
     is_trending, regime_msg = check_market_regime(df)
     if not is_trending:
         logger.info(regime_msg)
@@ -56,35 +54,26 @@ def create_market_snapshot(ticker="EURUSD=X"):
         
     logger.info(regime_msg)
 
-    sentinel = HarvardConsensusEngine()
+    sentinel = SentimentAnalyzer()
     crowd = sentinel.run_sentinel(ticker)
     
     latest = df.iloc[-1]
     
-    # 2. Hard Geometry Anchors (Phase 5)
     geo_anchors = get_geometric_anchors(df)
-    
-    # --- Phase 18: VOLUME PROFILE (Liquidity Foundation) ---
-    from geometry import calculate_volume_profile
     poc, va_low, va_high = calculate_volume_profile(df)
-
-    # --- Phase 18: VOLATILITY FLOOR (HFT Shield) ---
-    from geometry import calculate_volatility_floor
     vol_floor = calculate_volatility_floor(df)
     
-    # --- Phase 18: ZERO-COST MATH GATE (Cost Optimization) ---
-    # We only trigger the expensive AI analysts if we are at a "Point of Interest"
+    # Only trigger AI if at a Point of Interest
     last_close = float(latest['Close'])
     atr = float(latest.get('ATR_14', 0))
     
     # Extract distances from geo_anchors 
-    from geometry import calculate_swing_points, check_geometric_distance, calculate_fvg, detect_liquidity_sweeps
     df_swings = calculate_swing_points(df)
     last_high = df_swings['swing_high'].dropna().iloc[-1] if not df_swings['swing_high'].dropna().empty else 0
     last_low = df_swings['swing_low'].dropna().iloc[-1] if not df_swings['swing_low'].dropna().empty else 0
     
-    dist_to_h = check_geometric_distance(last_close, last_high)
-    dist_to_l = check_geometric_distance(last_close, last_low)
+    dist_to_h = price_distance(last_close, last_high)
+    dist_to_l = price_distance(last_close, last_low)
     
     # Threshold: 1.0 * ATR for PoI proximity (Volatility Aware)
     threshold = atr if atr > 0 else (last_close * 0.002) 
@@ -95,13 +84,11 @@ def create_market_snapshot(ticker="EURUSD=X"):
     
     if not (is_near_level or has_fvg or has_sweeps):
         logger.info(f"MATH GATE: No PoI detected (Dist to H: {dist_to_h:.5f}, Dist to L: {dist_to_l:.5f}, ATR Threshold: {threshold:.5f}).")
-        logger.info("Skipping AI analysis to save costs. Strategic Skip.")
-        import sys
+        logger.info("No setup detected, skipping")
         sys.exit(2) # Code 2: Strategic Skip (No POI)
     
-    logger.info("MATH GATE: High-Probability Zone Detected. Proceeding to AI Analysis.")
+    logger.info("Price near key level, proceeding to analysis")
 
-    # 3. Pydantic Validation (Phase 9)
     avg_vol_15m = float(df['Volume'].iloc[-15:].mean())
     raw_payload = {
         "ticker": ticker,
@@ -127,16 +114,14 @@ def create_market_snapshot(ticker="EURUSD=X"):
         return False
     except Exception as e:
         logger.error(f"SCHEMA VALIDATION FAILED: {e}")
-        # Halt pipeline as per Mission-Critical instructions
-        import sys
-        sys.exit(1)
+        raise e
 
     # 4. Construct Markdown "Source of Truth"
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    snapshot_md = f"""# MISSION-CRITICAL MARKET SNAPSHOT
+    snapshot_md = f"""# Market Snapshot
 **Asset**: {validated_data.ticker}
 **Generation Timestamp**: {timestamp}
-**Data Integrity Status**: Pydantic-Verified ✅
+**Data Integrity Status**: Pydantic-Verified
 
 ---
 
@@ -163,7 +148,7 @@ def create_market_snapshot(ticker="EURUSD=X"):
 
 ---
 
-## 4. HARVARD WOTC SENTIMENT ORACLE
+## 4. SENTIMENT ORACLE
 - **Aggregated Bias**: {validated_data.wotc_bias}
 - **Herd Status**: {validated_data.herd_status}
 - **Consensus Confidence**: {validated_data.wotc_confidence * 100}%

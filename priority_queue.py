@@ -3,15 +3,12 @@ import heapq
 import time
 import logging
 from utils import setup_logging
+from config_loader import config
 
 logger = setup_logging("alpha_queue")
 
 class AlphaQueue:
-    """
-    Priority-based opportunity queue. 
-    Ranks ticker hits by 'Alpha Score' (Proximity + Regime Quality).
-    Ensures the bot processes the 'God-Tier' setup first.
-    """
+    """Priority-based opportunity queue."""
     def __init__(self, max_size=10):
         self.queue = [] # Min-heap (we use negative scores for max-priority)
         self.max_size = max_size
@@ -21,8 +18,6 @@ class AlphaQueue:
         Push a candidate trade into the queue.
         strategy_id: [STAT_ARB, TREND_FOLLOW, CONTRARIAN_TRAP]
         """
-        # Phase 18: Strategy Weighting
-        # Contrarian traps are 'God-Tier' Alpha. We double their priority.
         strategy_weight = 2.0 if strategy_id == "CONTRARIAN_TRAP" else 1.0
         weighted_score = score * strategy_weight
         
@@ -51,6 +46,19 @@ class AlphaQueue:
     def clear(self):
         self.queue = []
 
+    def get_all_candidates(self):
+        """Returns all candidates in the queue without removing them, sorted by priority."""
+        sorted_items = sorted(self.queue, key=lambda x: x[0])
+        return [
+            {
+                "ticker": item[2], 
+                "strategy_id": item[3],
+                "score": -item[0], 
+                "context": item[4]
+            }
+            for item in sorted_items
+        ]
+
 def calculate_alpha_score(df, dist_to_h, dist_to_l):
     """
     Ranks a PoI hit.
@@ -64,18 +72,22 @@ def calculate_alpha_score(df, dist_to_h, dist_to_l):
         
         # 1. Proximity Weight
         min_dist = min(dist_to_h, dist_to_l)
-        prox_score = max(0, 50 * (1 - (min_dist / atr))) if atr > 0 else 0
+        max_prox_score = config.get("trading.alpha_max_prox_score", 50.0)
+        prox_score = max(0, max_prox_score * (1 - (min_dist / atr))) if atr > 0 else 0
         
-        # 2. Execution Quality (Phase 11 Hardening)
+        # 2. Execution Quality
         # Typical spread cost in dollars
         est_spread = price * (config.get("trading.fixed_spread_bps", 2.0) / 10000)
         spread_to_atr = est_spread / atr if atr > 0 else 1.0
         
-        # Bonus for tight spreads: +50 if spread is < 5% of ATR
-        exec_bonus = max(0, 50 * (1 - (spread_to_atr / 0.12))) 
+        # Bonus for tight spreads
+        max_exec_bonus = config.get("trading.alpha_max_exec_bonus", 50.0)
+        spread_threshold = config.get("trading.alpha_spread_threshold", 0.12)
+        exec_bonus = max(0, max_exec_bonus * (1 - (spread_to_atr / spread_threshold))) if spread_threshold > 0 else 0
         
         # 3. Regime Quality
-        regime_score = min(20, adx)
+        max_regime_score = config.get("trading.alpha_max_regime_score", 20.0)
+        regime_score = min(max_regime_score, adx)
         
         total_score = prox_score + exec_bonus + regime_score
         return total_score

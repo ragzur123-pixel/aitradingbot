@@ -36,7 +36,7 @@ class StrategyAuditor:
             report += f"- Win Rate (Last 10): {len(wins)*10}%\n"
             
             if len(losses) >= 5:
-                report += "- 🚨 CRITICAL BIAS DETECTED: Recent high failure rate.\n"
+                report += "- [CRITICAL] CRITICAL BIAS DETECTED: Recent high failure rate.\n"
                 
                 # Analyze common exit reasons
                 reasons = [t.get("exit_reason", "UNKNOWN") for t in losses]

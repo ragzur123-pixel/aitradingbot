@@ -7,10 +7,7 @@ from config_loader import config
 logger = logging.getLogger("research_historian")
 
 class ResearchHistorian:
-    """
-    Logs AI Reasoning vs. Market Reality.
-    Builds the 'Institutional Edge' through long-term data collection.
-    """
+    """Logs AI reasoning and trade setups to a SQLite database."""
     def __init__(self):
         self.db_path = config.get("system.research_journal_path", "research_journal.db")
         self._init_db()
@@ -65,7 +62,7 @@ class ResearchHistorian:
             logger.error(f"RESEARCH: Database initialization FAILED: {e}")
 
     def log_near_miss(self, miss_data):
-        """Logs why a potential setup was rejected (The 'No-Trade' Ledger)."""
+        """Logs why a potential setup was rejected."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute('''
@@ -120,10 +117,7 @@ class ResearchHistorian:
         conn.close()
 
     def prune_old_data(self, window_days=30):
-        """
-        Retires research data older than the walk-forward window.
-        Prevents Information Decay.
-        """
+        """Retires research data older than the walk-forward window."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cutoff = (datetime.now(timezone.utc) - timedelta(days=window_days)).strftime("%Y-%m-%d %H:%M:%S")

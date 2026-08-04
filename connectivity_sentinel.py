@@ -1,4 +1,4 @@
-import os
+"""Network latency monitoring."""
 import time
 import requests
 import logging
@@ -11,11 +11,7 @@ logger = setup_logging("connectivity_sentinel")
 notifier = Notifier()
 
 class ConnectivitySentinel:
-    """
-    Monitors local internet quality to Alpaca/Polygon.
-    Prevents trading during local 'Jitter' or ISP instability.
-    Essential for 24/7 Home Server setups.
-    """
+    """Monitors local internet quality."""
     def __init__(self, target_host="api.alpaca.markets"):
         self.target_host = target_host
         self.max_ping_ms = 350 # Max allowed latency for safe execution

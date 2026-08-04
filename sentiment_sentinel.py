@@ -1,3 +1,4 @@
+"""Multi-source sentiment analysis with weighted scoring."""
 import os
 import json
 import time
@@ -18,7 +19,7 @@ logger = setup_logging("sentiment_sentinel")
 
 SENTIMENT_FILE = "last_valid_bias.json"
 
-class HarvardConsensusEngine:
+class SentimentAnalyzer:
     def __init__(self):
         self.api_key = os.getenv("ALPACA_API_KEY")
         self.secret_key = os.getenv("ALPACA_SECRET_KEY")
@@ -31,7 +32,7 @@ class HarvardConsensusEngine:
             self.stream_client = None
             logger.warning("Alpaca keys missing. News sentiment will be offline.")
 
-        # Phase 2: High-Speed NLP with Gemini 1.5 Flash
+        # High-Speed NLP
         junior_cfg = config.get("models.junior_analyst", {"name": "gemini-1.5-flash", "temperature": 0})
         self.llm = ChatGoogleGenerativeAI(model=junior_cfg["name"], temperature=junior_cfg["temperature"])
         self.current_ticker = "EURUSD=X"
@@ -109,7 +110,7 @@ class HarvardConsensusEngine:
             return {"source": "Alpaca_News", "headlines": [], "status": "OFFLINE"}
 
     def _fetch_retail_ratios(self, ticker):
-        """Fetch retail positioning from DailyFX (Still useful for contrarian views)."""
+        """Scrapes retail sentiment from DailyFX."""
         url = "https://content.dailyfx.com/api/v1/sentiment"
         try:
             response = requests.get(url, timeout=10)
@@ -124,6 +125,7 @@ class HarvardConsensusEngine:
         except Exception as e:
             logger.warning(f"DailyFX Sentiment API failed: {e}")
         
+        # NOTE: returns neutral when offline - downstream should check status field
         return {"source": "Retail_Broker", "long_pct": 0.5, "short_pct": 0.5, "status": "OFFLINE"}
 
     def validate_bias(self, bias):
@@ -131,11 +133,12 @@ class HarvardConsensusEngine:
         try:
             val = float(bias)
             return max(-1.0, min(1.0, val))
-        except:
+        except Exception as e:
+            logger.warning(f"Sentiment validation failed: {e}")
             return 0.0
 
     def analyze_anonymous_votes(self, data_sources):
-        """Applies Harvard weighting and independent evaluation."""
+        """Applies weighting and independent evaluation."""
         votes = []
         
         # Vote 1: Retail (Contrarian)
@@ -191,7 +194,7 @@ class HarvardConsensusEngine:
         
         online_count = sum(1 for s in sources.values() if "ONLINE" in s.get("status", ""))
         
-        # Reliability Fail-Safe (Phase 18 Hardening)
+        # Reliability Fail-Safe
         # 2+ sources = high, 1 source = med, 0 = blind
         confidence_score = 0.90 if online_count >= 2 else 0.50 if online_count == 1 else 0.10
         
@@ -225,5 +228,5 @@ class HarvardConsensusEngine:
         os.replace(temp_path, SENTIMENT_FILE)
 
 if __name__ == "__main__":
-    sentinel = HarvardConsensusEngine()
+    sentinel = SentimentAnalyzer()
     sentinel.run_sentinel("EURUSD=X")

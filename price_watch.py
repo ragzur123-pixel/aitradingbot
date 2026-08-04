@@ -1,6 +1,8 @@
+"""Background streaming price monitor for stop-loss execution."""
 import os
 import json
 import time
+import sys
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
@@ -9,10 +11,7 @@ import oandapyV20.endpoints.pricing as pricing
 import oandapyV20.endpoints.trades as trades
 from utils import setup_logging
 
-# Load environment variables
 load_dotenv()
-
-# Setup logging
 logger = setup_logging("watchdog")
 
 JOURNAL_PATH = "trade_journal.json"
@@ -44,6 +43,8 @@ class OandaWatchdog:
         if not self.client: return
 
         logger.info("Starting High-Frequency OANDA Streaming Watchdog...")
+        retry_count = 0
+        MAX_RETRIES = 5
 
         while True:
             try:
@@ -51,7 +52,8 @@ class OandaWatchdog:
                 try:
                     with open(JOURNAL_PATH, "r") as f:
                         journal = json.load(f)
-                except:
+                except (FileNotFoundError, json.JSONDecodeError) as e:
+                    logger.warning(f"Journal read error: {e}")
                     time.sleep(10)
                     continue
 
@@ -68,6 +70,7 @@ class OandaWatchdog:
                 
                 try:
                     for tick in self.client.request(r):
+                        retry_count = 0  # Reset on successful tick
                         if tick["type"] == "PRICE":
                             instrument = tick["instrument"]
                             # Get mid price (average of bid and ask)
@@ -107,11 +110,15 @@ class OandaWatchdog:
                                             # Re-scan active trades
                                             break 
                 except Exception as e:
-                    logger.error(f"Streaming connection lost: {e}. Reconnecting in 5s...")
+                    retry_count += 1
+                    if retry_count > MAX_RETRIES:
+                        logger.error(f"Streaming connection lost {MAX_RETRIES} times. FATAL.")
+                        sys.exit(1)
+                    logger.error(f"Streaming connection lost: {e}. Reconnecting in 5s (Attempt {retry_count}/{MAX_RETRIES})...")
                     time.sleep(5)
             except Exception as e:
                 logger.exception("Fatal crash in WebSocket monitor")
-                time.sleep(10)
+                sys.exit(1)
 
 if __name__ == "__main__":
     watchdog = OandaWatchdog()

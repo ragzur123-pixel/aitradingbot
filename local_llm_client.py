@@ -3,15 +3,19 @@ import requests
 import json
 import logging
 import asyncio
+from dataclasses import dataclass
 from utils import setup_logging
 from config_loader import config
 
 logger = setup_logging("local_llm_client")
 
+@dataclass
+class LLMResponse:
+    content: str
+
 class LocalLLMClient:
     """
     Bridge to a local Inference instance (Ollama or vLLM).
-    Optimized for L4 GPU performance on us-east1d.
     """
     def __init__(self, model="llama3.1:70b"):
         # vLLM is preferred for 70B models on L4 (OpenAI-compatible)
@@ -39,17 +43,23 @@ class LocalLLMClient:
             if response.status_code == 200:
                 result = response.json()
                 content = result['choices'][0]['message']['content']
-                return type('Res', (object,), {"content": content})
-        except:
-            # Fallback to Ollama
-            try:
-                payload = {"model": self.model, "prompt": prompt, "stream": False}
-                response = requests.post(self.ollama_url, json=payload, timeout=300)
-                if response.status_code == 200:
-                    return type('Res', (object,), {"content": response.json().get("response", "")})
-            except Exception as e:
-                logger.error(f"Inference Failed: {e}")
-                return type('Res', (object,), {"content": "VETO: INFERENCE_FAILURE"})
+                return LLMResponse(content=content)
+            else:
+                logger.warning(f"vLLM API returned status {response.status_code}")
+        except Exception as e:
+            logger.warning(f"vLLM Connection Error: {e}")
+            
+        # Fallback to Ollama
+        try:
+            payload = {"model": self.model, "prompt": prompt, "stream": False}
+            response = requests.post(self.ollama_url, json=payload, timeout=300)
+            if response.status_code == 200:
+                return LLMResponse(content=response.json().get("response", ""))
+            else:
+                raise RuntimeError(f"Ollama API returned status {response.status_code}")
+        except Exception as e:
+            logger.error(f"Inference completely failed (vLLM and Ollama): {e}")
+            raise RuntimeError(f"Local LLM Inference Failed: {e}")
 
 
 if __name__ == "__main__":

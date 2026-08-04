@@ -269,11 +269,12 @@ async def finalize_trade_execution(ticker, direction, risk_val, confidence_level
              logger.error("Snapshot missing. Cannot execute.")
              return
              
-        # FRAGILE: parsing price from markdown file - should use API instead
-        with open("market_snapshot.md", "r") as f:
-            content = f.read()
-            match = re.search(r'Last Close Price\*\*: ([\d\.]+)', content)
-            target_price = float(match.group(1)) if match else 0.0
+        from market_feed import get_live_market_data
+        df_target = get_live_market_data(ticker, period="1d")
+        if df_target is not None and not df_target.empty:
+            target_price = df_target['Close'].iloc[-1]
+        else:
+            target_price = 0.0
 
         if target_price <= 0: return
 

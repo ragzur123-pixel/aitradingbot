@@ -2,7 +2,7 @@
 # AiTradingBot: Institutional Linux Deployment Script
 # Targets: Ubuntu 22.04+ with Real-Time (RT) Kernel optimization
 
-echo "--- 🏗️ INITIALIZING INSTITUTIONAL DEPLOYMENT ---"
+echo "---  INITIALIZING INSTITUTIONAL DEPLOYMENT ---"
 
 # 1. System Updates
 sudo apt-get update && sudo apt-get upgrade -y
@@ -41,6 +41,6 @@ ollama serve &
 sleep 10
 ollama pull llama3.1
 
-echo "--- ✅ DEPLOYMENT READY ---"
+echo "---  DEPLOYMENT READY ---"
 echo "1. Update your .env file with POLYGON_API_KEY."
 echo "2. Run: sudo systemctl enable --now aitradingbot"
