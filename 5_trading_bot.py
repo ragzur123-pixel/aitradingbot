@@ -1,11 +1,6 @@
-import os
-import json
 import logging
 import sys
-import re
-import time
 import asyncio
-import numpy as np
 from datetime import datetime, timezone
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
@@ -114,7 +109,7 @@ class PreMarketAuditor:
 
 async def run_trading_bot():
     try:
-        # --- PHASE 81: THE 12-MONTH SHADOW LOCK ---
+        # Paper trading date lock
         lock_date_str = config.get("trading.shadow_lock_until", "2027-05-31")
         lock_date = datetime.strptime(lock_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         
@@ -147,8 +142,8 @@ async def run_trading_bot():
             logger.critical(f"SYSTEM HEALTH VETO: {health_report['vetoes']}")
             return
 
-        from pairs_trading_scanner import CorrelationArbitrageEngine
-        scanner = CorrelationArbitrageEngine()
+        from pairs_trading_scanner import CointegrationArbitrageEngine
+        scanner = CointegrationArbitrageEngine()
         
         logger.info("Scanning Niche Portfolio for Arbitrage Anomalies...")
         best_pair = scanner.find_best_pair(portfolio)
@@ -160,18 +155,18 @@ async def run_trading_bot():
 
         ticker_a, ticker_b = best_pair['asset_a'], best_pair['asset_b']
         
-        # --- PHASE 85: MACRO-FX VETO (THE CURRENCY GHOST) ---
+        # Macro/FX divergence veto
         divergence_engine = FundamentalDivergence(ticker_a, ticker_b)
         macro_res = divergence_engine.analyze()
         if macro_res and macro_res['signal'] in ["FAKE_DIVERGENCE", "STRUCTURAL_BREAK"]:
             logger.critical(f"MACRO VETO: {macro_res['risk_flags']}")
             return
 
-        # --- PHASE 86: EXECUTION SLIP-CONTROL (SPREAD TAX) ---
+        # Execution friction check
         # Assuming we can get spread data from a hypothetical get_market_depth
         # For now, we simulate a 0.5% bid-ask penalty for ADRs
-        expected_reversion_pct = abs(best_pair['zscore'] * 0.02) # Crude approximation
-        estimated_friction = 0.012 # 1.2% round-trip cost (Spread + Comm + Slippage)
+        expected_reversion_pct = abs(best_pair['zscore'] * 0.02) # Rough estimate - replace with real friction model
+        estimated_friction = 0.012 # Estimated round-trip cost
         
         if expected_reversion_pct < estimated_friction:
             logger.warning(f"FRICTION VETO: Alpha ({expected_reversion_pct:.2%}) < Friction ({estimated_friction:.2%}).")
@@ -184,7 +179,7 @@ async def run_trading_bot():
             logger.warning(f"FORBIDDEN LIST VETO: {reason}")
             return
 
-        # --- PHASE 87: REAL-TIME INTELLIGENCE (LLAMA 70B RE-INTEGRATED) ---
+        # Real-time news and macro audit
         # Since we are on Daily/H1, the 3s delay is now an asset, not a liability.
         logger.info(f"Initiating Real-Time Adversarial Audit for {ticker_a}/{ticker_b}...")
         headlines = news_bot.get_latest_headlines(ticker_a)
@@ -213,14 +208,14 @@ async def run_trading_bot():
             "direction": direction_a,
             "zscore": best_pair['zscore'],
             "audit": "MATH-FIRST INSTANT ENTRY (Pre-Market Filter Passed)",
-            "conviction": 10, # High threshold already met by Z-Score 3.5
+            "conviction": 10, # TODO: derive from signal strength
             "price_a": best_pair['current_a'],
             "price_b": best_pair['current_b']
         }
         historian.log_shadow_trade(trade_data)
         
         msg = (
-            f"🚀 <b>INSTANT NICHE ARBITRAGE</b>\n"
+            f"<b>INSTANT NICHE ARBITRAGE</b>\n"
             f"Pair: {ticker_a} vs {ticker_b}\n"
             f"Z-Score: {best_pair['zscore']:.2f}\n"
             f"Strategy: Zero-Latency Math Entry\n"
@@ -230,6 +225,7 @@ async def run_trading_bot():
         logger.info(f"SUCCESS: Niche alpha logged for {ticker_a}/{ticker_b}")
 
     except Exception as e:
+        # TODO: add granular error handling
         logger.exception(f"Bot crash: {e}")
 
 if __name__ == "__main__":

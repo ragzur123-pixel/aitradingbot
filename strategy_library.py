@@ -1,6 +1,5 @@
 import logging
-from geometry import detect_liquidity_sweeps, detect_absorption, calculate_volume_profile
-from pairs_trading_scanner import PairsScanner
+from pairs_trading_scanner import CointegrationArbitrageEngine
 
 logger = logging.getLogger("strategy_library")
 
@@ -11,8 +10,8 @@ class AlphaStrategy:
 class ContrarianHunter(AlphaStrategy):
     """Fades retail crowds by identifying traps."""
     def get_signal(self, df):
-        from contrarian_module import ContrarianTrapHunter
-        hunter = ContrarianTrapHunter()
+        from contrarian_module import ContrarianModule
+        hunter = ContrarianModule()
         traps = hunter.identify_trap_scenarios(df)
         if traps:
             return {"direction": traps[0]['institutional_intent'], "confidence": 0.8}
@@ -22,8 +21,10 @@ class StatArbSpecialist(AlphaStrategy):
     """Trades mean reversion of cointegrated pairs."""
     def get_signal(self, df, pair_df=None):
         if pair_df is None: return None
-        scanner = PairsScanner()
-        z = scanner.calculate_zscore(df['Close'], pair_df['Close'])
+        scanner = CointegrationArbitrageEngine()
+        res = scanner.get_cointegration_spread(df, pair_df)
+        if res is None: return None
+        z = res['zscore']
         if z > 2.0: return {"direction": "SHORT_SPREAD", "confidence": 0.75}
         if z < -2.0: return {"direction": "LONG_SPREAD", "confidence": 0.75}
         return None
