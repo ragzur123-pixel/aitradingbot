@@ -225,8 +225,8 @@ async def run_trading_bot():
         logger.info(f"SUCCESS: Niche alpha logged for {ticker_a}/{ticker_b}")
 
     except Exception as e:
-        # TODO: add granular error handling
-        logger.exception(f"Bot crash: {e}")
+        logger.exception(f"FATAL Bot crash: {e}. Exiting immediately to avoid zombie state.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     asyncio.run(run_trading_bot())
