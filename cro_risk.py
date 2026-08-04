@@ -1,15 +1,17 @@
+"""Final risk gate before order execution. Validates buying power, calculates ATR-based stops, and submits orders."""
 import os
-import json
+import asyncio
 import logging
 import time
-from datetime import datetime
+import re
 from dotenv import load_dotenv
+from config_loader import config
 from utils import setup_logging
 from atomic_ops import atomic_read_json, atomic_write_json
 
 # Alpaca SDK imports
 from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest, TakeProfitRequest, StopLossRequest
+from alpaca.trading.requests import LimitOrderRequest, TakeProfitRequest, StopLossRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderClass, OrderStatus
 
 # Load environment variables
@@ -161,10 +163,7 @@ class AlpacaExecutor:
             return None
 
 class AsymmetricEntryOptimizer:
-    """
-    Prevents Hour-Boundary Manipulation with VWAP-Anchored Entry.
-    Waits for price to revert to the 1-minute VWAP before firing.
-    """
+    """Calculate VWAP-anchored limit price."""
     @staticmethod
     def calculate_vwap(df):
         """Calculates 1-minute Volume Weighted Average Price."""
@@ -223,10 +222,7 @@ class AsymmetricEntryOptimizer:
         return df_final['Close'].iloc[-1] if df_final is not None else target_price
 
 class AggressiveLimitEntry:
-    """
-    Targets a 1-minute wick touch (Discount) within an hourly breakout.
-    Uses 'Tactical Limit' placement 0.2% below/above current price to catch spikes.
-    """
+    """Uses limit placement 0.2% below/above current price to catch spikes."""
     @staticmethod
     async def get_tactical_limit_fill(ticker, direction, target_price, timeout_minutes=10):
         """
@@ -273,6 +269,7 @@ async def finalize_trade_execution(ticker, direction, risk_val, confidence_level
              logger.error("Snapshot missing. Cannot execute.")
              return
              
+        # FRAGILE: parsing price from markdown file - should use API instead
         with open("market_snapshot.md", "r") as f:
             content = f.read()
             match = re.search(r'Last Close Price\*\*: ([\d\.]+)', content)
@@ -280,15 +277,14 @@ async def finalize_trade_execution(ticker, direction, risk_val, confidence_level
 
         if target_price <= 0: return
 
-        # --- PHASE 31: ASYMMETRIC ENTRY OPTIMIZATION ---
-        # Instead of entering at the hour mark, we seek a better fill.
+        # Asymmetric entry optimization
         entry_price = await AsymmetricEntryOptimizer.get_optimal_fill_price(ticker, direction, target_price)
 
-        # 0. ACCOUNT RECONCILIATION
+        # Account reconciliation
         equity = executor.get_total_equity()
         if equity <= 0: return
 
-        # 1. SL / TP Calculation
+        # SL/TP Calculation
         if manual_sl and manual_tp:
             # We must adjust SL/TP if the entry_price changed significantly
             # but for now we keep the deterministic anchors.
@@ -299,7 +295,7 @@ async def finalize_trade_execution(ticker, direction, risk_val, confidence_level
             stop_loss = entry_price * (1 - sl_pct) if direction == "LONG" else entry_price * (1 + sl_pct)
             take_profit = entry_price * (1 + sl_pct * 3) if direction == "LONG" else entry_price * (1 - sl_pct * 3)
 
-        # 2. QTY Calculation
+        # QTY Calculation
         risk_per_share = abs(entry_price - stop_loss)
         if risk_per_share <= 0: return
         qty = int(risk_val / risk_per_share)
@@ -308,7 +304,7 @@ async def finalize_trade_execution(ticker, direction, risk_val, confidence_level
             logger.warning(f"Sizing Veto: QTY is 0. Risk Val ${risk_val} too small.")
             return
 
-        # --- PASSIVE MAKER ENTRY ---
+        # Passive maker entry
         logger.info(f">>> EXECUTING PASSIVE MAKER: {direction} {ticker} | QTY: {qty} | Entry: {entry_price}")
         
         result = executor.execute_passive_maker_entry(ticker, direction, qty, entry_price)
