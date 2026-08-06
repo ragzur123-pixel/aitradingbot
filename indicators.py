@@ -1,6 +1,20 @@
 import pandas as pd
 import numpy as np
 
+def _wilders_smoothing(series, period):
+    """
+    Vectorized implementation of Wilder's Smoothing (SMMA).
+    Matches the loop: smma[i] = (smma[i-1] * (period - 1) + series[i]) / period
+    with initial value as SMA(period).
+    """
+    if len(series) < period:
+        return series.copy() * np.nan
+    sma = series.rolling(window=period, min_periods=period).mean()
+    res = series.copy()
+    res.iloc[:period-1] = np.nan
+    res.iloc[period-1] = sma.iloc[period-1]
+    return res.ewm(alpha=1/period, adjust=False).mean()
+
 def calculate_rsi(series, period=14):
     """
     Wilder's Smoothing RSI implementation (matches TradingView/MT4).
@@ -14,12 +28,8 @@ def calculate_rsi(series, period=14):
     loss = -delta.where(delta < 0, 0)
     
     # Wilder's Smoothing (SMMA): First value is SMA, subsequent are EMA-like
-    avg_gain = gain.rolling(window=period, min_periods=period).mean()
-    avg_loss = loss.rolling(window=period, min_periods=period).mean()
-    
-    for i in range(period, len(series)):
-        avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (period - 1) + gain.iloc[i]) / period
-        avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (period - 1) + loss.iloc[i]) / period
+    avg_gain = _wilders_smoothing(gain, period)
+    avg_loss = _wilders_smoothing(loss, period)
         
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
@@ -50,9 +60,7 @@ def calculate_atr(df, period=14):
     tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
     
     # Wilder's Smoothing for ATR
-    atr = tr.rolling(window=period, min_periods=period).mean()
-    for i in range(period, len(df)):
-        atr.iloc[i] = (atr.iloc[i-1] * (period - 1) + tr.iloc[i]) / period
+    atr = _wilders_smoothing(tr, period)
         
     return atr.fillna(tr.mean())
 
@@ -82,12 +90,8 @@ def calculate_adx(df, period=14):
     # 3. Smoothed TR, +DM, -DM
     atr = calculate_atr(df, period)
     
-    smooth_plus_dm = pd.Series(plus_dm, index=df.index).rolling(window=period).mean()
-    smooth_minus_dm = pd.Series(minus_dm, index=df.index).rolling(window=period).mean()
-    
-    for i in range(period, len(df)):
-        smooth_plus_dm.iloc[i] = (smooth_plus_dm.iloc[i-1] * (period - 1) + plus_dm[i]) / period
-        smooth_minus_dm.iloc[i] = (smooth_minus_dm.iloc[i-1] * (period - 1) + minus_dm[i]) / period
+    smooth_plus_dm = _wilders_smoothing(pd.Series(plus_dm, index=df.index), period)
+    smooth_minus_dm = _wilders_smoothing(pd.Series(minus_dm, index=df.index), period)
         
     # 4. +DI and -DI
     plus_di = 100 * (smooth_plus_dm / atr)
@@ -95,10 +99,16 @@ def calculate_adx(df, period=14):
     
     # 5. DX and ADX
     dx = 100 * (abs(plus_di - minus_di) / (plus_di + minus_di))
-    adx = dx.rolling(window=period).mean()
     
-    for i in range(period * 2 - 1, len(df)):
-        adx.iloc[i] = (adx.iloc[i-1] * (period - 1) + dx.iloc[i]) / period
+    # ADX is Wilder's smoothing of DX, but starting at 2*period - 1
+    if len(dx) < period * 2 - 1:
+        adx = dx.copy() * np.nan
+    else:
+        adx_sma = dx.rolling(window=period).mean()
+        res_adx = dx.copy()
+        res_adx.iloc[:period * 2 - 1] = np.nan
+        res_adx.iloc[period * 2 - 2] = adx_sma.iloc[period * 2 - 2]
+        adx = res_adx.ewm(alpha=1/period, adjust=False).mean()
         
     return adx.fillna(0.0)
 
