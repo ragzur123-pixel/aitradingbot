@@ -8,6 +8,7 @@ Requirements: pip install flask alpaca-trade-api
 import time
 import threading
 import logging
+import secrets
 from flask import Flask, request, jsonify
 from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import ClosePositionRequest
@@ -16,6 +17,7 @@ import os
 # --- CONFIGURATION ---
 ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
+DEADMAN_SWITCH_SECRET = os.getenv("DEADMAN_SWITCH_SECRET")
 HEARTBEAT_TIMEOUT = 90 # Seconds (3x the sender interval)
 PORT = 5000
 
@@ -54,6 +56,14 @@ def watchdog_loop():
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
+    # SECURITY: Verify authorization to prevent rogue keepalives
+    if DEADMAN_SWITCH_SECRET:
+        auth_header = request.headers.get("Authorization")
+        expected_token = f"Bearer {DEADMAN_SWITCH_SECRET}"
+        if not auth_header or not secrets.compare_digest(auth_header, expected_token):
+            logger.warning("Unauthorized heartbeat attempt.")
+            return jsonify({"error": "Unauthorized"}), 401
+
     global last_heartbeat_time, emergency_triggered
     last_heartbeat_time = time.time()
     if emergency_triggered:

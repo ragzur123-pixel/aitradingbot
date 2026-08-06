@@ -15,6 +15,7 @@ class HeartbeatSender:
     """
     def __init__(self, vps_url=None):
         self.vps_url = vps_url or os.getenv("DEADMAN_SWITCH_URL")
+        self.secret = os.getenv("DEADMAN_SWITCH_SECRET")
         self.interval = 30 # Seconds
 
     def send_heartbeat(self):
@@ -25,7 +26,11 @@ class HeartbeatSender:
         logger.info(f"Starting heartbeat sender to {self.vps_url}...")
         while True:
             try:
-                response = requests.post(f"{self.vps_url}/heartbeat", json={"status": "ALIVE"}, timeout=10)
+                headers = {}
+                if self.secret:
+                    headers["Authorization"] = f"Bearer {self.secret}"
+
+                response = requests.post(f"{self.vps_url}/heartbeat", json={"status": "ALIVE"}, headers=headers, timeout=10)
                 if response.status_code == 200:
                     logger.debug("Heartbeat delivered successfully.")
                 else:
