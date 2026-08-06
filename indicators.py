@@ -7,12 +7,29 @@ def _wilders_smoothing(series, period):
     Matches the loop: smma[i] = (smma[i-1] * (period - 1) + series[i]) / period
     with initial value as SMA(period).
     """
-    if len(series) < period:
+    # Dynamically find the first non-NaN index position
+    if isinstance(series, pd.DataFrame):
+        # We assume series is actually a Series here for indicator calculation
+        # but if a DataFrame is passed inadvertently, we can check any
+        has_valid = series.notna().any().any()
+        first_valid_pos = series.notna().values.argmax() // series.shape[1] if has_valid else len(series)
+    else:
+        has_valid = series.notna().any()
+        first_valid_pos = series.notna().values.argmax() if has_valid else len(series)
+
+    if len(series) - first_valid_pos < period:
         return series.copy() * np.nan
+        
     sma = series.rolling(window=period, min_periods=period).mean()
     res = series.copy()
-    res.iloc[:period-1] = np.nan
-    res.iloc[period-1] = sma.iloc[period-1]
+    
+    # Calculate the first valid SMA index
+    first_sma_idx = first_valid_pos + period - 1
+    
+    # Clear all values before the SMA and insert the SMA as the anchor
+    res.iloc[:first_sma_idx] = np.nan
+    res.iloc[first_sma_idx] = sma.iloc[first_sma_idx]
+    
     return res.ewm(alpha=1/period, adjust=False).mean()
 
 def calculate_rsi(series, period=14):

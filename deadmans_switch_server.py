@@ -57,12 +57,16 @@ def watchdog_loop():
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
     # SECURITY: Verify authorization to prevent rogue keepalives
-    if DEADMAN_SWITCH_SECRET:
-        auth_header = request.headers.get("Authorization")
-        expected_token = f"Bearer {DEADMAN_SWITCH_SECRET}"
-        if not auth_header or not secrets.compare_digest(auth_header, expected_token):
-            logger.warning("Unauthorized heartbeat attempt.")
-            return jsonify({"error": "Unauthorized"}), 401
+    # Fail-closed: Deny request if secret is missing from environment
+    if not DEADMAN_SWITCH_SECRET:
+        logger.warning("Unconfigured DEADMAN_SWITCH_SECRET. Rejecting heartbeat.")
+        return jsonify({"error": "Unauthorized"}), 401
+        
+    auth_header = request.headers.get("Authorization")
+    expected_token = f"Bearer {DEADMAN_SWITCH_SECRET}"
+    if not auth_header or not secrets.compare_digest(auth_header, expected_token):
+        logger.warning("Unauthorized heartbeat attempt.")
+        return jsonify({"error": "Unauthorized"}), 401
 
     global last_heartbeat_time, emergency_triggered
     last_heartbeat_time = time.time()
