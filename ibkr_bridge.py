@@ -60,8 +60,8 @@ class IBKRBridge:
 
     def apply_randomized_offset(self, price, side):
         """Adds small random jitter to limit price."""
-        import random
-        jitter_pct = random.uniform(0.0001, 0.0005)
+        import secrets
+        jitter_pct = secrets.SystemRandom().uniform(0.0001, 0.0005)
         offset = price * jitter_pct
         
         if side == "BUY":
