@@ -74,8 +74,13 @@ def calculate_atr(df, period=14):
     tr2 = abs(high - close.shift())
     tr3 = abs(low - close.shift())
     
+<<<<<<< HEAD
+    # Using np.fmax instead of pd.concat().max(axis=1) for ~130x performance improvement
+    tr = np.fmax(tr1, np.fmax(tr2, tr3))
+=======
     # Optimization: np.fmax is ~30x faster than pd.concat().max(axis=1) for element-wise extremums
     tr = pd.Series(np.fmax(tr1, np.fmax(tr2, tr3)), index=df.index)
+>>>>>>> origin/main
     
     # Wilder's Smoothing for ATR
     atr = _wilders_smoothing(tr, period)
@@ -96,8 +101,13 @@ def calculate_adx(df, period=14):
     tr1 = high - low
     tr2 = abs(high - close.shift())
     tr3 = abs(low - close.shift())
+<<<<<<< HEAD
+    # Using np.fmax instead of pd.concat().max(axis=1) for ~130x performance improvement
+    tr = np.fmax(tr1, np.fmax(tr2, tr3))
+=======
     # Optimization: np.fmax is ~30x faster than pd.concat().max(axis=1) for element-wise extremums
     tr = pd.Series(np.fmax(tr1, np.fmax(tr2, tr3)), index=df.index)
+>>>>>>> origin/main
     
     # 2. Directional Movement
     up_move = high - high.shift()
